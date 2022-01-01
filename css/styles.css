@@ -1,0 +1,102 @@
+*{
+    font-family: "Arial Narrow", sans-serif;
+    margin: 0;
+    padding: 0;
+}
+.header{
+    display: flex;
+    justify-content: space-between;
+}
+.header .logo{
+    border: 1px solid red;
+    display: flex;
+    justify-content: space-between;
+}
+ul{
+    list-style-type: none;
+}
+
+.header ul{
+    text-decoration: none;
+}
+/*.title{*/
+/*    border: 1px solid green;*/
+/*    display: flex;*/
+/*    justify-content: center;*/
+/*    font-size: 24px;*/
+/*    padding: 25px;*/
+/*}*/
+.header .menu{
+    margin: 10px;
+}
+.header .menu li{
+    display: inline;
+    font-size: 20px;
+    margin: 10px;
+    padding: 5px;
+    border: 1px solid yellow;
+}
+.header .auth ul{
+    font-size: 18px;
+    justify-content: space-between;
+}
+
+.title{
+    justify-content: center;
+    color: darkslateblue;
+    font-size: 24px;
+    padding: 10px;
+    text-align: center;
+}
+
+.tag{
+    font-size: 20px;
+    text-align: center;
+    margin-top: 20px;
+
+}
+
+.user{
+    font-size: 18px;
+    text-align: center;
+    margin: 10px;
+}
+
+
+
+#menu_inst{
+    justify-content: center;
+    text-align: center;
+    /*margin: 10px;*/
+}
+
+#menu_inst select{
+    justify-content: center;
+    text-align: center;
+    margin: 20px;
+}
+
+.additional{
+    font-size: 16px;
+    text-align: center;
+    /*margin-top: 20px;*/
+    margin-bottom: 10px;
+}
+
+.coresearch{
+    font-size: 16px;
+    text-align: center;
+    margin: 20px;
+}
+
+
+/*.{*/
+/*    font-size: 16px;*/
+/*    width: 100px;*/
+/*    height: 30px;*/
+/*}*/
+
+
+fieldset {
+    border:0 none;
+}
