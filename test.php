@@ -46,7 +46,8 @@ function leap_year_check($year):bool{
 //echo "2004 ".$d."<br />";
 
 
-///// Number of the day in year (int)
+///// Number of the day from beginning of the year (int)
+/// This function calculates amount of days from beginning of the year to the concrete date.
 function day_numb($year_numb, $month_numb, $date_numb):int{
     $count_day = 0;
     $year_control = leap_year_check($year_numb);
@@ -65,11 +66,12 @@ function day_numb($year_numb, $month_numb, $date_numb):int{
     $count_day = $count_day + $date_numb;
     return $count_day;
 }
-// Example of using day_numb function
-//$day = day_numb(1980, 4,22);
-//echo $day;
+// Example of using day_numb function. Let's find a number of 22 april day 1980 yr. from beginning of 1980 year.
+//$n_day = day_numb(1980, 4,22);
+//echo $n_day;
 
 ///// Conversion a time into decimal system (float)
+/* this function accepts a time in string type with ":"- separator "hh:mm:ss" and returns this time in decimal float form. */
 function time_dec($time_input):float{
     $first_position_sep = mb_strpos($time_input, ':'); // To find a place of first position ":" in $time_input
     $horus = (int)mb_substr($time_input, 0, $first_position_sep); // Trim $time_input to find first digits of time (horus)
@@ -84,12 +86,13 @@ function time_dec($time_input):float{
         return $total_time_decimal;
     }
 }
- //Example of using LST function
+//Example of using time_dec function
 //$time_op = "09:46:54.4";
 //$time_check = time_dec($time_op);
 //echo "Time check ".$time_check."<br>";
 
-/////////////// B_const function calculates constant B, which needed for calculating siderial time
+/////////////// B_const function calculates constant B, which needed for calculating a siderial time
+///
 function B_const($year_gst):float{
     $jd_year = julian_date($year_gst, 1, 0);
     $S = $jd_year - 2415020;
@@ -100,7 +103,7 @@ function B_const($year_gst):float{
     return $B;
 }
 
-//// Greenwich siderial time (GST) (float) from a year, month, day and UTC-time
+//// Greenwich (Global) siderial time (GST) (float) from a year, month, day and UTC-time
 function GST($year_gst, $month_gst, $day_gst, $time_ut= "00:00:00"):float{
     $A = 0.0657098;
     $C = 1.002738;
@@ -742,7 +745,7 @@ function Set_rise_sun($year_sun, $month_sun, $day_sun):array{
 //echo "Rise of the Sun: ".$temp1[0]."<br>";
 //echo "Set of the Sun: ".$temp1[1]."<br>";
 
-function twinlights($year_twi, $month_twi, $day_twi):array{
+function twilights_astr($year_twi, $month_twi, $day_twi):array{
     global $latitude_place_decimal_deg;
     $latitude_place_radian = deg2rad($latitude_place_decimal_deg);
     $tan_lat = tan($latitude_place_radian);
@@ -763,8 +766,8 @@ function twinlights($year_twi, $month_twi, $day_twi):array{
     $twi_after_set_dec = time_dec($temp_array3[1]) + $continuum_tw_set_hour;
     $twi_before_rise_sep = hours_to_sep($twi_before_rise_dec);
     $twi_after_set_sep = hours_to_sep($twi_after_set_dec);
-    $twinlights_arr = array($twi_before_rise_sep, $twi_after_set_sep);
-    return $twinlights_arr;
+    $twilights_astr_arr = array($twi_before_rise_sep, $twi_after_set_sep);
+    return $twilights_astr_arr;
 }
 //
 //$temp = twinlights(2022,1,6);
@@ -803,7 +806,7 @@ function month_sun_time($year_sun, $month_sun): array
 //echo "Rise: ".$sun_temp[0][0]."<br>";
 //echo "Set: ".$sun_temp[0][1]."<br>";
 
-function month_twi_time($year_twi, $month_twi): array
+function month_twi_time_astr($year_twi, $month_twi): array
 {
     $month_array_twi_time = array();
     $month_31 = array(1,3,5,7,8,10,12);
@@ -824,9 +827,112 @@ function month_twi_time($year_twi, $month_twi): array
         }
     }
     for($i = 0; $i < $counter_days; $i++){
-        $temp_twi_time = twinlights($year_twi, $month_twi, $i+1);
+        $temp_twi_time = twilights_astr($year_twi, $month_twi, $i+1);
         array_push($month_array_twi_time, $temp_twi_time);
     }
     return $month_array_twi_time;
 }
 
+function twilights_nav($year_nav, $month_nav, $day_nav):array{
+    global $latitude_place_decimal_deg;
+    $latitude_place_radian = deg2rad($latitude_place_decimal_deg);
+    $tan_lat = tan($latitude_place_radian);
+    $temp_array1 = Solar_position($year_nav, $month_nav, $day_nav);
+    $temp_array2 = Solar_position($year_nav, $month_nav, $day_nav + 1);
+    $DEC_rise_str = $temp_array1[1];
+    $DEC_set_str = $temp_array2[1];
+    $DEC_rise_rad = DEC_inradian($DEC_rise_str);
+    $DEC_set_rad = DEC_inradian($DEC_set_str);
+    $hour_angle_rise_start_deg = rad2deg(acos(-$tan_lat * tan($DEC_rise_rad)));
+    $hour_angle_set_start_deg = rad2deg(acos(-$tan_lat * tan($DEC_set_rad)));
+    $hour_angle_rise_finish_deg = rad2deg(acos((cos(deg2rad(102)) - sin($latitude_place_radian) * sin($DEC_rise_rad)) / (cos($latitude_place_radian) * cos($DEC_rise_rad))));
+    $hour_angle_set_finish_deg = rad2deg(acos((cos(deg2rad(102)) - sin($latitude_place_radian) * sin($DEC_set_rad)) / (cos($latitude_place_radian) * cos($DEC_set_rad))));
+    $continuum_tw_rise_hour = ($hour_angle_rise_finish_deg - $hour_angle_rise_start_deg) / 15;
+    $continuum_tw_set_hour = ($hour_angle_set_finish_deg - $hour_angle_set_start_deg) / 15;
+    $temp_array3 = Set_rise_sun($year_nav, $month_nav, $day_nav);
+    $twi_before_rise_dec = time_dec($temp_array3[0]) - $continuum_tw_rise_hour;
+    $twi_after_set_dec = time_dec($temp_array3[1]) + $continuum_tw_set_hour;
+    $twi_before_rise_sep = hours_to_sep($twi_before_rise_dec);
+    $twi_after_set_sep = hours_to_sep($twi_after_set_dec);
+    $twilights_nav_arr = array($twi_before_rise_sep, $twi_after_set_sep);
+    return $twilights_nav_arr;
+}
+
+function twilights_civil($year_civil, $month_civil, $day_civil):array{
+    global $latitude_place_decimal_deg;
+    $latitude_place_radian = deg2rad($latitude_place_decimal_deg);
+    $tan_lat = tan($latitude_place_radian);
+    $temp_array1 = Solar_position($year_civil, $month_civil, $day_civil);
+    $temp_array2 = Solar_position($year_civil, $month_civil, $day_civil + 1);
+    $DEC_rise_str = $temp_array1[1];
+    $DEC_set_str = $temp_array2[1];
+    $DEC_rise_rad = DEC_inradian($DEC_rise_str);
+    $DEC_set_rad = DEC_inradian($DEC_set_str);
+    $hour_angle_rise_start_deg = rad2deg(acos(-$tan_lat * tan($DEC_rise_rad)));
+    $hour_angle_set_start_deg = rad2deg(acos(-$tan_lat * tan($DEC_set_rad)));
+    $hour_angle_rise_finish_deg = rad2deg(acos((cos(deg2rad(96)) - sin($latitude_place_radian) * sin($DEC_rise_rad)) / (cos($latitude_place_radian) * cos($DEC_rise_rad))));
+    $hour_angle_set_finish_deg = rad2deg(acos((cos(deg2rad(96)) - sin($latitude_place_radian) * sin($DEC_set_rad)) / (cos($latitude_place_radian) * cos($DEC_set_rad))));
+    $continuum_tw_rise_hour = ($hour_angle_rise_finish_deg - $hour_angle_rise_start_deg) / 15;
+    $continuum_tw_set_hour = ($hour_angle_set_finish_deg - $hour_angle_set_start_deg) / 15;
+    $temp_array3 = Set_rise_sun($year_civil, $month_civil, $day_civil);
+    $twi_before_rise_dec = time_dec($temp_array3[0]) - $continuum_tw_rise_hour;
+    $twi_after_set_dec = time_dec($temp_array3[1]) + $continuum_tw_set_hour;
+    $twi_before_rise_sep = hours_to_sep($twi_before_rise_dec);
+    $twi_after_set_sep = hours_to_sep($twi_after_set_dec);
+    $twilights_civil_arr = array($twi_before_rise_sep, $twi_after_set_sep);
+    return $twilights_civil_arr;
+}
+
+function month_twi_time_nav($year_twi, $month_twi): array
+{
+    $month_array_twi_time_nav = array();
+    $month_31 = array(1,3,5,7,8,10,12);
+    $month_30 = array(4,6,9,11);
+    $counter_days = 0;
+    if(in_array($month_twi, $month_31)){
+        $counter_days = 31;
+    }
+    elseif(in_array($month_twi, $month_30)){
+        $counter_days = 30;
+    }
+    elseif($month_twi == 2){
+        if(leap_year_check($year_twi)){
+            $counter_days = 29;
+        }
+        else{
+            $counter_days = 28;
+        }
+    }
+    for($i = 0; $i < $counter_days; $i++){
+        $temp_twi_time = twilights_nav($year_twi, $month_twi, $i+1);
+        array_push($month_array_twi_time_nav, $temp_twi_time);
+    }
+    return $month_array_twi_time_nav;
+}
+
+function month_twi_time_civil($year_twi, $month_twi): array
+{
+    $month_array_twi_time_civil = array();
+    $month_31 = array(1,3,5,7,8,10,12);
+    $month_30 = array(4,6,9,11);
+    $counter_days = 0;
+    if(in_array($month_twi, $month_31)){
+        $counter_days = 31;
+    }
+    elseif(in_array($month_twi, $month_30)){
+        $counter_days = 30;
+    }
+    elseif($month_twi == 2){
+        if(leap_year_check($year_twi)){
+            $counter_days = 29;
+        }
+        else{
+            $counter_days = 28;
+        }
+    }
+    for($i = 0; $i < $counter_days; $i++){
+        $temp_twi_time = twilights_civil($year_twi, $month_twi, $i+1);
+        array_push($month_array_twi_time_civil, $temp_twi_time);
+    }
+    return $month_array_twi_time_civil;
+}
