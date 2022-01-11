@@ -44,9 +44,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $g = month_sid_time($year_id,$month_id);
         echo "<div align='center'>";
         echo "Год: ".$year_id.", Месяц: ".$month_id;
-        echo "<p><b>&nbsp &nbsp</b></p>";
+
         echo "<p><b>Локальное звездное время на 00:00:00 местного времени</b></p>";
-        echo "<p><b>&nbsp &nbsp</b></p>";
+
         echo "<table align='center'>";
         echo "<thead>
             <tr>
@@ -61,33 +61,41 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         echo "</tbody></table>";
 
         $sun = month_sun_time($year_id, $month_id);
-        $twi = month_twi_time($year_id, $month_id);
+        $twi_astr = month_twi_time_astr($year_id, $month_id);
+        $twi_nav = month_twi_time_nav($year_id, $month_id);
+        $twi_civil = month_twi_time_civil($year_id, $month_id);
         echo "<p><b>&nbsp &nbsp</b></p>";
         echo "Год: ".$year_id.", Месяц: ".$month_id;
-        echo "<p><b>&nbsp &nbsp</b></p>";
+
         echo "<p><b>Восход и заход Солнца, сумерки по местному времени (UTC +6 ч.)</b></p>";
-        echo "<p><b>&nbsp &nbsp</b></p>";
+
         echo "<table align='center'>";
         echo "<thead>
             <tr>
-            <th align='center'>&nbsp &nbsp Число &nbsp &nbsp </th>
-            <th align='center'>Начало сумерек </th>
-            <th align='center'> &nbsp &nbsp Восход &nbsp &nbsp </th>
-            <th align='center'> &nbsp &nbsp Заход &nbsp &nbsp </th>
-            <th align='center'>Конец сумерек </th>
-            
+            <th align='center'>Число </th>
+            <th align='center'>Начало астр. сумерек </th>
+            <th align='center'>Начало нав. сумерек </th>
+            <th align='center'>Начало гражд. сумерек </th>
+            <th align='center'> Восход Солнца  </th>
+            <th align='center'> Заход Солнца </th>
+            <th align='center'>Конец гражд. сумерек </th>
+            <th align='center'>Конец нав. сумерек </th>
+            <th align='center'>Конец астр. сумерек </th>
+
             </tr>
             </thead>
             <tbody>";
         for($i = 0; $i < count($sun); $i++) {
-            echo "<tr><td align='center'>".($i + 1)."</td><td align='center'>".$twi[$i][0]."</td><td align='center'>".$sun[$i][0]."</td><td align='center'>".$sun[$i][1]."</td><td align='center'>".$twi[$i][1]."</td></tr>";
+            echo "<tr><td align='center'>".($i + 1)."</td><td align='center'>".$twi_astr[$i][0]."</td><td align='center'>".$twi_nav[$i][0]."</td><td align='center'>".$twi_civil[$i][0]."</td><td align='center'>".$sun[$i][0]."</td><td align='center'>".$sun[$i][1]."</td><td align='center'>".$twi_civil[$i][1]."</td><td align='center'>".$twi_nav[$i][1]."</td><td align='center'>".$twi_astr[$i][1]."</td></tr>";
         }
         echo "</tbody></table>";
         echo "</div>";
     }
     elseif (($year_id and $month_id and $data_type == 2)){
         $sun = month_sun_time($year_id, $month_id);
-        $twi = month_twi_time($year_id, $month_id);
+        $twi_astr = month_twi_time_astr($year_id, $month_id);
+        $twi_nav = month_twi_time_nav($year_id, $month_id);
+        $twi_civil = month_twi_time_civil($year_id, $month_id);
         echo "<div align='center'>";
         echo "Год: ".$year_id.", Месяц: ".$month_id;
         echo "<p><b>&nbsp &nbsp</b></p>";
@@ -96,17 +104,21 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         echo "<table align='center'>";
         echo "<thead>
             <tr>
-            <th align='center'>&nbsp &nbsp Число &nbsp &nbsp </th>
-            <th align='center'>Начало сумерек </th>
-            <th align='center'> &nbsp &nbsp Восход &nbsp &nbsp </th>
-            <th align='center'> &nbsp &nbsp Заход &nbsp &nbsp </th>
-            <th align='center'>Конец сумерек </th>
-            
+            <th align='center'>Число </th>
+            <th align='center'>Начало астр. сумерек </th>
+            <th align='center'>Начало нав. сумерек </th>
+            <th align='center'>Начало гражд. сумерек </th>
+            <th align='center'> Восход Солнца  </th>
+            <th align='center'> Заход Солнца </th>
+            <th align='center'>Конец гражд. сумерек </th>
+            <th align='center'>Конец нав. сумерек </th>
+            <th align='center'>Конец астр. сумерек </th>
+
             </tr>
             </thead>
             <tbody>";
         for($i = 0; $i < count($sun); $i++) {
-            echo "<tr><td align='center'>".($i + 1)."</td><td align='center'>".$twi[$i][0]."</td><td align='center'>".$sun[$i][0]."</td><td align='center'>".$sun[$i][1]."</td><td align='center'>".$twi[$i][1]."</td></tr>";
+            echo "<tr><td align='center'>".($i + 1)."</td><td align='center'>".$twi_astr[$i][0]."</td><td align='center'>".$twi_nav[$i][0]."</td><td align='center'>".$twi_civil[$i][0]."</td><td align='center'>".$sun[$i][0]."</td><td align='center'>".$sun[$i][1]."</td><td align='center'>".$twi_civil[$i][1]."</td><td align='center'>".$twi_nav[$i][1]."</td><td align='center'>".$twi_astr[$i][1]."</td></tr>";
         }
         echo "</tbody></table>";
         echo "</div>";
@@ -139,8 +151,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
     if(isset($_SERVER['HTTP_REFERER'])) {
         $urlback = htmlspecialchars($_SERVER['HTTP_REFERER']);
-        echo "<a href='$urlback' class='history-back'>Back</a>";
+        echo "<br>";
+        echo "<a href='$urlback' class='history-back'> Назад </a><br>";
     }
+
 
 
 }
