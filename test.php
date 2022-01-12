@@ -416,13 +416,14 @@ function deg_to_sep($deg_dec):string{
 //// Solar coordinates (RA, DEC)
 function Solar_position ($year_sol, $month_sol, $day_sol):array{
     $n_days = julian_date($year_sol, $month_sol, $day_sol) - 2451545;
+    $n_centuries = $n_days / 36525;
     $mean_longitude_deg = 280.460 + 0.9856474 * $n_days;
     $mean_anomaly_deg = 357.528 + 0.98560003 * $n_days;
     $mean_anomaly_rad = deg2rad($mean_anomaly_deg);
     $ecliptic_longitude_deg = $mean_longitude_deg + 1.915 * sin($mean_anomaly_rad) + 0.020 * sin(2*$mean_anomaly_rad);
     //echo "ecliptic_longitude_deg".$ecliptic_longitude_deg."<br>";
     $ecliptic_longitude_rad = deg2rad($ecliptic_longitude_deg);
-    $ecliptic_inclination_deg = 23.439 - 0.0000004 * $n_days;
+    $ecliptic_inclination_deg = 23.43929111 - (46.8150 / 3600) * $n_centuries - ((0.00059 / 3600) * pow($n_centuries, 2)) + ((0.001813 / 3600)*pow($n_centuries, 3));
     //echo "ecliptic_inclination_deg".$ecliptic_inclination_deg."<br>";
     $ecliptic_inclination_rad = deg2rad($ecliptic_inclination_deg);
 //    $RA_sun_deg = rad2deg(atan(cos($ecliptic_inclination_rad) * tan($ecliptic_longitude_rad)));
@@ -936,3 +937,261 @@ function month_twi_time_civil($year_twi, $month_twi): array
     }
     return $month_array_twi_time_civil;
 }
+
+////// Moon position
+
+function Moon_positon($year_moon, $month_moon, $day_moon, $time_ut = "00:00:00"){
+    /// Constants on 00 Jan 2010///
+    $basis_jd_date = 2455196.5;
+    $mean_longitude_moon_basis_deg =  91.929336;
+    $mean_longitude_peregee_basis_deg = 130.143076;
+    $mean_longitude_asc_node_basis_deg = 291.682547;
+    $orbit_inclinat_deg = 5.145396;
+
+    //// longitudes calculation
+    $delta_days = julian_date($year_moon, $month_moon, $day_moon) + (time_dec($time_ut) / 24) - $basis_jd_date;
+    $mean_longitude_moon_indate_deg = 13.1763966 * $delta_days + $mean_longitude_moon_basis_deg;
+    $mean_moon_anomaly_indate_deg = $mean_longitude_moon_indate_deg - 0.1114041 * $delta_days - $mean_longitude_peregee_basis_deg;
+    $mean_asc_node_longitude_indate_deg = $mean_longitude_asc_node_basis_deg - 0.0529539 * $delta_days;
+
+    ///// Corrections
+
+    /// Solar parameters
+    $n_days = julian_date($year_moon, $month_moon, $day_moon) - 2451545;
+    $n_centuries = $n_days / 36525;
+    $mean_longitude_sun_deg = 280.460 + 0.9856474 * $n_days;
+    $mean_anomaly_sun_deg = 357.528 + 0.98560003 * $n_days;
+    $mean_anomaly_sun_rad = deg2rad($mean_anomaly_sun_deg);
+    $ecliptic_longitude_sun_deg = $mean_longitude_sun_deg + 1.915 * sin($mean_anomaly_sun_rad) + 0.020 * sin(2*$mean_anomaly_sun_rad);
+
+    //// Correction 1: evection calculation
+    $c = $mean_longitude_moon_indate_deg - $ecliptic_longitude_sun_deg;
+    $evect = 1.2739 * sin(deg2rad(2 * $c - $mean_moon_anomaly_indate_deg));
+
+    //// Correction 2 and 3: annual equation and third correction
+    $ann_eq = 0.1858 * sin($mean_anomaly_sun_rad);
+    $ann_3 = 0.37 * sin($mean_anomaly_sun_rad);
+
+    //// Corrected moon anomaly
+    $mean_moon_anomaly_indate_deg_corr = $mean_moon_anomaly_indate_deg + $evect - $ann_eq - $ann_3;
+
+    //// Center correction and fourth correction
+    $cent_corr = 6.2886 * sin(deg2rad($mean_moon_anomaly_indate_deg_corr));
+    $ann_4 = 0.214 * sin(deg2rad(2 * $mean_moon_anomaly_indate_deg_corr));
+
+    //// Corrected mean longitude of the Moon
+    $mean_longitude_moon_deg_cor = $mean_longitude_moon_indate_deg + $evect + $cent_corr - $ann_eq + $ann_4;
+
+    //// Variation
+    $variation = 0.6583 * sin(deg2rad(2*($mean_longitude_moon_deg_cor - $ecliptic_longitude_sun_deg )));
+
+    //// Corrected ascending node longitude
+    $mean_asc_node_longitude_cor_deg = $mean_asc_node_longitude_indate_deg - 0.16 * sin($mean_anomaly_sun_rad);
+
+    //// True Moon orbital longitude
+    $true_moon_orb_longitide_deg = $mean_longitude_moon_deg_cor + $variation;
+
+    //// Ecliptic coordinates calculation for the Moon
+    $y = sin(deg2rad($true_moon_orb_longitide_deg - $mean_asc_node_longitude_cor_deg)) * cos(deg2rad($orbit_inclinat_deg));
+    $x = cos(deg2rad($true_moon_orb_longitide_deg - $mean_asc_node_longitude_cor_deg));
+    $quadrant_xy = 0;
+    if($y > 0 and $x > 0){
+        $quadrant_xy = 1;
+    }
+    if($y > 0 and $x < 0){
+        $quadrant_xy = 2;
+    }
+    if($y < 0 and $x < 0){
+        $quadrant_xy = 3;
+    }
+    if($y < 0 and $x > 0){
+        $quadrant_xy = 4;
+    }
+
+    $moon_ecl_longitude_deg = rad2deg(atan($y / $x));
+
+    $quadrant_ecl = 0;
+    if($moon_ecl_longitude_deg > 0){
+        if($moon_ecl_longitude_deg > 0 and $moon_ecl_longitude_deg < 90 ){
+            $quadrant_ecl = 1;
+        }
+        if($moon_ecl_longitude_deg > 90 and $moon_ecl_longitude_deg < 180){
+            $quadrant_ecl = 2;
+        }
+        if(($moon_ecl_longitude_deg > 180 and $moon_ecl_longitude_deg < 270)){
+            $quadrant_ecl = 3;
+        }
+        if(($moon_ecl_longitude_deg > 270 and $moon_ecl_longitude_deg < 360)){
+            $quadrant_ecl = 4;
+        }
+    }
+    else{
+        if(abs($moon_ecl_longitude_deg) > 0 and abs($moon_ecl_longitude_deg) < 90 ){
+            $quadrant_ecl = 4;
+        }
+        if(abs($moon_ecl_longitude_deg) > 90 and abs($moon_ecl_longitude_deg) < 180){
+            $quadrant_ecl = 3;
+        }
+        if((abs($moon_ecl_longitude_deg) > 180 and abs($moon_ecl_longitude_deg) < 270)){
+            $quadrant_ecl = 2;
+        }
+        if((abs($moon_ecl_longitude_deg) > 270 and abs($moon_ecl_longitude_deg) < 360)){
+            $quadrant_ecl = 1;
+        }
+    }
+
+    if($moon_ecl_longitude_deg > 0 and ($quadrant_ecl != $quadrant_xy)){
+        if($quadrant_ecl == 1 and $quadrant_xy == 3){
+            $moon_ecl_longitude_deg = $moon_ecl_longitude_deg + 180;
+        }
+        if($quadrant_ecl == 2 and $quadrant_xy == 4){
+            $moon_ecl_longitude_deg = $moon_ecl_longitude_deg + 180;
+        }
+        if($quadrant_ecl == 3 and $quadrant_xy == 1){
+            $moon_ecl_longitude_deg = $moon_ecl_longitude_deg - 180;
+        }
+        if($quadrant_ecl == 4 and $quadrant_xy == 2){
+            $moon_ecl_longitude_deg = $moon_ecl_longitude_deg - 180;
+        }
+    }
+    elseif($moon_ecl_longitude_deg < 0 and ($quadrant_ecl != $quadrant_xy)){
+        if($quadrant_ecl == 1 and $quadrant_xy == 3){
+            $moon_ecl_longitude_deg = $moon_ecl_longitude_deg - 180;
+        }
+        if($quadrant_ecl == 2 and $quadrant_xy == 4){
+            $moon_ecl_longitude_deg = $moon_ecl_longitude_deg - 180;
+        }
+        if($quadrant_ecl == 3 and $quadrant_xy == 1){
+            $moon_ecl_longitude_deg = $moon_ecl_longitude_deg + 180;
+        }
+        if($quadrant_ecl == 4 and $quadrant_xy == 2){
+            $moon_ecl_longitude_deg = $moon_ecl_longitude_deg + 180;
+        }
+    }
+    elseif ($moon_ecl_longitude_deg < 0 and ($quadrant_ecl == $quadrant_xy) and (($y / $x) > 0)){
+        $moon_ecl_longitude_deg = $moon_ecl_longitude_deg + 360;
+    }
+    elseif ($moon_ecl_longitude_deg > 0 and ($quadrant_ecl == $quadrant_xy) and (($y / $x) < 0)){
+        $moon_ecl_longitude_deg = $moon_ecl_longitude_deg - 360;
+    }
+    ////// Moon ecliptic coordinates
+    $moon_ecl_longitude_cor_deg = $moon_ecl_longitude_deg + $mean_asc_node_longitude_cor_deg;
+    $moon_ecl_latitude_deg = rad2deg(asin(sin(deg2rad($true_moon_orb_longitide_deg - $mean_asc_node_longitude_cor_deg)) * sin(deg2rad($orbit_inclinat_deg))));
+
+    ///// Moon RA and DEC coordinates from ecliptic coordinates
+    /// Right ascention
+    $ecliptic_inclination_deg = 23.43929111 - (46.8150 / 3600) * $n_centuries - ((0.00059 / 3600) * pow($n_centuries, 2)) + ((0.001813 / 3600)*pow($n_centuries, 3));
+    $y1 = sin(deg2rad($moon_ecl_longitude_cor_deg)) * cos(deg2rad($ecliptic_inclination_deg)) - tan(deg2rad($moon_ecl_latitude_deg)) * sin(deg2rad($ecliptic_inclination_deg));
+    $x1 = cos(deg2rad($moon_ecl_longitude_cor_deg));
+    //echo "y1: ".$y1."<br>";
+    //echo "x1: ".$x1."<br>";
+    $quadrant_xy1 = 0;
+    if($y1 > 0 and $x1 > 0){
+        $quadrant_xy1 = 1;
+    }
+    if($y1 > 0 and $x1 < 0){
+        $quadrant_xy1 = 2;
+    }
+    if($y1 < 0 and $x1 < 0){
+        $quadrant_xy1 = 3;
+    }
+    if($y1 < 0 and $x1 > 0){
+        $quadrant_xy1 = 4;
+    }
+
+    $RA_moon_deg = rad2deg(atan(($y1 / $x1)));
+    $quadrant_ra = 0;
+
+    if($RA_moon_deg > 0){
+        if($RA_moon_deg > 0 and $RA_moon_deg < 90 ){
+            $quadrant_ra = 1;
+        }
+        if($RA_moon_deg > 90 and $RA_moon_deg < 180){
+            $quadrant_ra = 2;
+        }
+        if(($RA_moon_deg > 180 and $RA_moon_deg < 270)){
+            $quadrant_ra = 3;
+        }
+        if(($RA_moon_deg > 270 and $RA_moon_deg < 360)){
+            $quadrant_ra = 4;
+        }
+    }
+    else{
+        if(abs($RA_moon_deg) > 0 and abs($RA_moon_deg) < 90 ){
+            $quadrant_ra = 4;
+        }
+        if(abs($RA_moon_deg) > 90 and abs($RA_moon_deg) < 180){
+            $quadrant_ra = 3;
+        }
+        if((abs($RA_moon_deg) > 180 and abs($RA_moon_deg) < 270)){
+            $quadrant_ra = 2;
+        }
+        if((abs($RA_moon_deg) > 270 and abs($RA_moon_deg) < 360)){
+            $quadrant_ra = 1;
+        }
+    }
+
+    if($RA_moon_deg > 0 and ($quadrant_ra != $quadrant_xy1)){
+        if($quadrant_ra == 1 and $quadrant_xy1 == 3){
+            $RA_moon_deg = $RA_moon_deg + 180;
+        }
+        if($quadrant_ra == 2 and $quadrant_xy1 == 4){
+            $RA_moon_deg = $RA_moon_deg + 180;
+        }
+        if($quadrant_ra == 3 and $quadrant_xy1 == 1){
+            $RA_moon_deg = $RA_moon_deg - 180;
+        }
+        if($quadrant_ra == 4 and $quadrant_xy1 == 2){
+            $RA_moon_deg = $RA_moon_deg - 180;
+        }
+    }
+    elseif($RA_moon_deg < 0 and ($quadrant_ra != $quadrant_xy1)){
+        if($quadrant_ra == 1 and $quadrant_xy1 == 3){
+            $RA_moon_deg = $RA_moon_deg - 180;
+        }
+        if($quadrant_ra == 2 and $quadrant_xy1 == 4){
+            $RA_moon_deg = $RA_moon_deg - 180;
+        }
+        if($quadrant_ra == 3 and $quadrant_xy1 == 1){
+            $RA_moon_deg = $RA_moon_deg + 180;
+        }
+        if($quadrant_ra == 4 and $quadrant_xy1 == 2){
+            $RA_moon_deg = $RA_moon_deg + 180;
+        }
+    }
+    elseif ($RA_moon_deg < 0 and ($quadrant_ra == $quadrant_xy1) and (($y1 / $x1) > 0)){
+        $RA_moon_deg = $RA_moon_deg + 360;
+    }
+    elseif ($RA_moon_deg > 0 and ($quadrant_ra == $quadrant_xy1) and (($y1 / $x1) < 0)){
+        $RA_moon_deg = $RA_moon_deg - 360;
+    }
+    //echo "quadrant_ra ".$quadrant_ra."<br>";
+    //echo " quadrant_xy1 ".$quadrant_xy1."<br>";
+
+    $RA_moon_hour_dec = $RA_moon_deg / 15;
+
+    //// Declination
+    $Dec_moon_deg = rad2deg(asin(sin(deg2rad($moon_ecl_latitude_deg)) * cos(deg2rad($ecliptic_inclination_deg)) + cos(deg2rad($moon_ecl_latitude_deg)) * sin(deg2rad($ecliptic_inclination_deg)) * sin(deg2rad($moon_ecl_longitude_cor_deg))));
+
+    $moon_ecl_coord_deg_dec = array($moon_ecl_longitude_cor_deg, $moon_ecl_latitude_deg, $ecliptic_longitude_sun_deg, $true_moon_orb_longitide_deg, $RA_moon_hour_dec, $Dec_moon_deg);
+    return $moon_ecl_coord_deg_dec;
+}
+//
+//$moon_pos = Moon_positon(2003,9,1);
+//echo "RA: ".$moon_pos[4]."<br>";
+//echo "DEC: ".$moon_pos[5]."<br>";
+//echo "lambda: ".($moon_pos[0] - 360)."<br>";
+//echo "betta: ".$moon_pos[1]."<br>";
+
+
+
+//// Moon phases
+function Moon_phase($year_ph, $month_ph, $day_ph, $time_ut = "00:00:00"){
+    $temp_array1 = Moon_positon($year_ph, $month_ph, $day_ph, $time_ut);
+    $Moon_age_deg = $temp_array1[3] - $temp_array1[2];
+    $Phase_moon = round(((1 - cos(deg2rad($Moon_age_deg))) / 2), 2);
+    return $Phase_moon;
+}
+
+//$a = Moon_phase(2003,9,1);
+//echo "Phase of Moon: ".$a."<br>";
