@@ -2,7 +2,12 @@
 <p class="title"><b>Астрофизический институт им. Фесенкова</b></p>
 <p class="title"><b>Астрономический календарь г. Алматы</b></p>
 <form action="calend_output.php" method="post">
-    <p class="tag"><b> Введите год и выбирете месяц </b></p>
+
+    <p class="tag"><b> Координаты места </b></p>
+    <div id="menu_inst">
+    Широта &nbsp <input type="text" name="alt" size="10" value="43.25">&nbsp Долгота &nbsp <input type="text" name="long" size="10" value="76.87"> Час. пояс &nbsp <input type="text" name="zone" size="10" value="6">
+    </div>
+        <p class="tag"><b> Введите год и выберите месяц </b></p>
     <div id="menu_inst">
         Год &nbsp <input type="text" name="year" size="10">&nbsp &nbsp
         <select name="month">
@@ -24,9 +29,11 @@
     <p class="tag" ><b> Интересующие данные </b></p>
     <div class="additional">
         <p > &nbsp &nbsp </p>
-        <input type="radio" name="type_data" value=1> Звездное время (локальное)  &nbsp
-        <input type="radio" name="type_data" value=2> Восход, заход Солнца, суммерки &nbsp
-        <input type="radio" name="type_data" value=3> Все данные &nbsp
+        <input type="radio" name="type_data" value=1> Звёздное время (локальное)  &nbsp
+        <input type="radio" name="type_data" value=2> Восход, заход Солнца, сумерки &nbsp
+        <input type="radio" name="type_data" value=3> Восход, заход Луны, фазы &nbsp <br><br>
+        <input type="radio" name="type_data" value=5> Равноденствия и солнцестояния &nbsp
+<!--        <input type="radio" name="type_data" value=4> Все данные &nbsp-->
     </div>
     <p class="tag"><button type="submit" name="submission">Рассчитать</button></p>
 </form>
