@@ -6,9 +6,9 @@
 //require "sun.php";
 
 $longitude_place_decimal_deg = $_POST['long']; // longitude of some place in decimal degrees (in this case Almaty longitude)
-$latitude_place_decimal_deg = $_POST['alt']; // latitude of some place in decimal degrees (in this case Almaty longitude)
+$latitude_place_decimal_deg = $_POST['lat']; // latitude of some place in decimal degrees (in this case Almaty longitude)
 $Time_Zone = $_POST['zone']; // time zone from UTC (in this case Almaty time zone)
-$altitude_place = 0; // Altitude (in meters) over the sea level (in this case 0 meters)
+$altitude_place = $_POST['altitude']; // Altitude (in meters) over the sea level (in this case 0 meters)
 //$longitude_place_decimal_deg = 76.95; // longitude of some place in decimal degrees (in this case Almaty longitude)
 //$longitude_place_decimal_deg = 51.76; // longitude of some place in decimal degrees (in this case Almaty longitude)
 //$latitude_place_decimal_deg = 46.95; // latitude of some place in decimal degrees (in this case Almaty longitude)
@@ -644,16 +644,20 @@ function nutation_obliquity_correction ($T_2000){
 
 //// Solar coordinates (RA, DEC)
 function Solar_position ($year_sol, $month_sol, $day_sol, $loc_time = "00:00:00"):array{
-    $n_days = julian_date($year_sol, $month_sol, $day_sol, $loc_time) - 2451545;
-    $T_2000 = (julian_date($year_sol, $month_sol, $day_sol) - 2451545) / 36525;
-    $n_centuries = $n_days / 36525;
-    $ecliptic_longitude_2010_deg = 279.557208;
+    global $altitude_place;
+    global $latitude_place_decimal_deg;
+    //$n_days = julian_date($year_sol, $month_sol, $day_sol, $loc_time) - 2451545;
+    $T_2000 = (julian_date($year_sol, $month_sol, $day_sol, $loc_time) - 2451545) / 36525;
+    //$n_centuries = $n_days / 36525;
+    //$ecliptic_longitude_2010_deg = 279.557208;
     $eccentricity_2010 = 0.016708634 - 0.000042037 * $T_2000 - 0.0000001267 * pow($T_2000,2);
-    $ecliptic_longitude_2010_peregee_deg = 283.112438;
-    $days_from_2010 =  julian_date($year_sol, $month_sol, $day_sol, $loc_time) - julian_date(2010,1,0);
+    //$ecliptic_longitude_2010_peregee_deg = 283.112438;
+    //$days_from_2010 =  julian_date($year_sol, $month_sol, $day_sol, $loc_time) - julian_date(2010,1,0);
     //$mean_longitude_deg = 280.460 + 0.9856474 * $n_days;
+    $mean_longitude_deg = 280.46646 + 36000.76983 * $T_2000 + 0.0003032 * pow($T_2000,2);
     //$mean_anomaly_deg = 357.528 + 0.98560003 * $n_days;
-    $mean_anomaly_deg = (360 / 365.242191) * $days_from_2010 + $ecliptic_longitude_2010_deg - $ecliptic_longitude_2010_peregee_deg;
+    //$mean_anomaly_deg = (360 / 365.242191) * $days_from_2010 + $ecliptic_longitude_2010_deg - $ecliptic_longitude_2010_peregee_deg;
+    $mean_anomaly_deg = 357.52911 + 35999.05029 * $T_2000 - 0.0001537 * pow($T_2000, 2);
     $mean_anomaly_rad = deg2rad($mean_anomaly_deg);
     ////$equation_center = $mean_anomaly_deg + (360 / M_PI) * $eccentricity_2010 * sin($mean_anomaly_rad);
     //$ecliptic_longitude_deg = $mean_longitude_deg + 1.915 * sin($mean_anomaly_rad) + 0.020 * sin(2*$mean_anomaly_rad);
@@ -661,10 +665,11 @@ function Solar_position ($year_sol, $month_sol, $day_sol, $loc_time = "00:00:00"
     $true_anomaly_deg = rad2deg($true_anomaly_rad);
     //$ecliptic_longitude_deg = $equation_center + $ecliptic_longitude_2010_peregee_deg;
     $Omega_rad = deg2rad(125.04  - 1934.136 * $T_2000);
-    $ecliptic_longitude_deg = $true_anomaly_deg + $ecliptic_longitude_2010_peregee_deg - 0.00569 - 0.00478 * sin($Omega_rad) + nutation_obliquity_correction ($T_2000)[0];
+    //$ecliptic_longitude_deg = $true_anomaly_deg + $ecliptic_longitude_2010_peregee_deg - 0.00569 - 0.00478 * sin($Omega_rad) + nutation_obliquity_correction ($T_2000)[0];
+    $ecliptic_longitude_deg = $mean_longitude_deg - $mean_anomaly_deg + $true_anomaly_deg - 0.00569 - 0.00478 * sin($Omega_rad) + nutation_obliquity_correction ($T_2000)[0];
     //echo "ecliptic_longitude_deg".$ecliptic_longitude_deg."<br>";
     $ecliptic_longitude_rad = deg2rad($ecliptic_longitude_deg);
-    $ecliptic_inclination_deg = 23.43929111 - (46.8150 / 3600) * $n_centuries - ((0.00059 / 3600) * pow($n_centuries, 2)) + ((0.001813 / 3600)*pow($n_centuries, 3)) + nutation_obliquity_correction ($T_2000)[1];
+    $ecliptic_inclination_deg = 23.43929078 - (46.8150 / 3600) * $T_2000 - ((0.00059 / 3600) * pow($T_2000, 2)) + ((0.001813 / 3600)*pow($T_2000, 3)) + nutation_obliquity_correction ($T_2000)[1];
     //echo "ecliptic_inclination_deg".$ecliptic_inclination_deg."<br>";
     $ecliptic_inclination_rad = deg2rad($ecliptic_inclination_deg);
 //  //$RA_sun_deg = rad2deg(atan(cos($ecliptic_inclination_rad) * tan($ecliptic_longitude_rad)));
@@ -769,7 +774,33 @@ function Solar_position ($year_sol, $month_sol, $day_sol, $loc_time = "00:00:00"
     if($RA_sun_hour_dec < 0){
         $RA_sun_hour_dec = $RA_sun_hour_dec + 24;
     }
-    $solar_position_dec = array($RA_sun_hour_dec, $DEC_sun_deg);
+
+    //// Geocentric parallax correction
+    $u_rad = atan(0.99664719 * tan(deg2rad($latitude_place_decimal_deg)));
+    $rho_sin_phi = 0.9964719 * sin($u_rad) + ($altitude_place / 6378140) * sin(deg2rad($latitude_place_decimal_deg));
+    $rho_cos_phi = cos($u_rad) + ($altitude_place / 6378140) * cos(deg2rad($latitude_place_decimal_deg));
+    $hour_angl_hour_dec = Local_time_to_LST($year_sol, $month_sol, $day_sol, $loc_time) - $RA_sun_hour_dec;
+    if ($hour_angl_hour_dec < 0){
+        $hour_angl_hour_dec = $hour_angl_hour_dec + 24;
+    }
+    elseif ($hour_angl_hour_dec > 24){
+        $hour_angl_hour_dec = $hour_angl_hour_dec - 24;
+    }
+    $distance_astr_unit = 1.000001018 * (1 - pow($eccentricity_2010,2)) / (1 + $eccentricity_2010 * cos($true_anomaly_rad));
+    $parallax_arcsec = 8.794 / $distance_astr_unit;
+    $parallax_hour = $parallax_arcsec / 3600;
+    $parallax_deg = $parallax_hour * 15;
+    $correction_parallax_RA = ($parallax_hour * sin(deg2rad($hour_angl_hour_dec * 15)) * $rho_cos_phi) / (cos(deg2rad($DEC_sun_deg)));
+    $correction_parallax_DEC = $parallax_deg * ($rho_sin_phi * cos(deg2rad($DEC_sun_deg)) - $rho_cos_phi * cos(deg2rad($hour_angl_hour_dec * 15)) * sin(deg2rad($DEC_sun_deg)));
+    $corrected_RA_hour_dec = $RA_sun_hour_dec - $correction_parallax_RA;
+    if ($corrected_RA_hour_dec > 24){
+        $corrected_RA_hour_dec = $corrected_RA_hour_dec - 24;
+    }
+    elseif ($corrected_RA_hour_dec < 0){
+        $corrected_RA_hour_dec = $corrected_RA_hour_dec + 24;
+    }
+    $corrected_DEC_deg_dec = $DEC_sun_deg - $correction_parallax_DEC;
+    $solar_position_dec = array($corrected_RA_hour_dec, $corrected_DEC_deg_dec, $RA_sun_hour_dec, $DEC_sun_deg);
     return $solar_position_dec;
 
 }
@@ -1919,10 +1950,11 @@ function sun_corrections($DEC_dec){
     $sin_lat = sin($latitude_place_radian);
     $DEC_rad = deg2rad($DEC_dec);
     $psi_refraction_rad = acos(($sin_lat / cos($DEC_rad)));
-    $x_disc_refr_sin = sin(deg2rad(0.833333));
+    //$psi_refraction_rad = $latitude_place_radian;
+    $x_disc_refr_sin = sin(deg2rad(0.8411));
     $y_way_rad = asin($x_disc_refr_sin / sin($psi_refraction_rad));
     $delta_t_sec = 240 * rad2deg($y_way_rad) / cos($DEC_rad);
-    $delta_t_hours = $delta_t_sec / 3600;
+    $delta_t_hours = ($delta_t_sec / 3600) * 1.002786;
     //echo "delta_t_hours: ".$delta_t_hours."<br>";
     return $delta_t_hours;
 }
