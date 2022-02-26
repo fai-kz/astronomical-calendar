@@ -1,11 +1,12 @@
 <link rel='stylesheet' href='css/styles.css'>
 <p class="title"><b>Астрофизический институт им. Фесенкова</b></p>
-<p class="title"><b>Астрономический календарь г. Алматы</b></p>
+<p class="title"><b>Астрономический календарь </b></p>
 <form action="calend_output.php" method="post">
 
     <p class="tag"><b> Координаты места </b></p>
     <div id="menu_inst">
-    Широта &nbsp <input type="text" name="alt" size="10" value="43.25">&nbsp Долгота &nbsp <input type="text" name="long" size="10" value="76.87"> Час. пояс &nbsp <input type="text" name="zone" size="10" value="6">
+    Широта &nbsp <input type="text" name="lat" size="5" value="43.25">&nbsp &nbsp Долгота &nbsp <input type="text" name="long" size="5" value="76.87"><br><br>
+        Высота над ур. м. &nbsp <input type="text" name="altitude" size="5" value="0"> (м)&nbsp &nbsp Час. пояс &nbsp <input type="text" name="zone" size="5" value="6"> от UTC
     </div>
         <p class="tag"><b> Введите год и выберите месяц </b></p>
     <div id="menu_inst">
@@ -38,5 +39,7 @@
     <p class="tag"><button type="submit" name="submission">Рассчитать</button></p>
 </form>
 
-<!--<p> Программу для расчетов календаря подготовил старший научный сотрудник АФИФ, к.ф.-м.н. Виталий Ким </b></p>-->
-<!--<p> kim@fai.kz </b></p>-->
+<div class="additional1">
+<p > Программу для расчетов календаря подготовил старший научный сотрудник АФИФ, к.ф.-м.н. Виталий Ким </b></p>
+<p> kim@fai.kz </b></p>
+</div>
