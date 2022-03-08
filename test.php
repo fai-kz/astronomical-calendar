@@ -9,10 +9,11 @@ $longitude_place_decimal_deg = $_POST['long']; // longitude of some place in dec
 $latitude_place_decimal_deg = $_POST['lat']; // latitude of some place in decimal degrees (in this case Almaty longitude)
 $Time_Zone = $_POST['zone']; // time zone from UTC (in this case Almaty time zone)
 $altitude_place = $_POST['altitude']; // Altitude (in meters) over the sea level (in this case 0 meters)
+//$altitude_place = 0;
 //$longitude_place_decimal_deg = 76.95; // longitude of some place in decimal degrees (in this case Almaty longitude)
-//$longitude_place_decimal_deg = 51.76; // longitude of some place in decimal degrees (in this case Almaty longitude)
-//$latitude_place_decimal_deg = 46.95; // latitude of some place in decimal degrees (in this case Almaty longitude)
-//$Time_Zone = 5; // time zone from UTC (in this case Almaty time zone)
+//$longitude_place_decimal_deg = 0; // longitude of some place in decimal degrees (in this case Almaty longitude)
+//$latitude_place_decimal_deg = 45; // latitude of some place in decimal degrees (in this case Almaty longitude)
+//$Time_Zone = 0; // time zone from UTC (in this case Almaty time zone)
 
 //// Julian Date calculation /////////////////// (float)
 /* This function accepts: year, month and day in integer form. It returns Julian date for an input date. */
@@ -800,7 +801,7 @@ function Solar_position ($year_sol, $month_sol, $day_sol, $loc_time = "00:00:00"
         $corrected_RA_hour_dec = $corrected_RA_hour_dec + 24;
     }
     $corrected_DEC_deg_dec = $DEC_sun_deg - $correction_parallax_DEC;
-    $solar_position_dec = array($corrected_RA_hour_dec, $corrected_DEC_deg_dec, $RA_sun_hour_dec, $DEC_sun_deg);
+    $solar_position_dec = array($corrected_RA_hour_dec, $corrected_DEC_deg_dec, $RA_sun_hour_dec, $DEC_sun_deg, $distance_astr_unit);
     return $solar_position_dec;
 
 }
@@ -1061,151 +1062,391 @@ function month_twi_time_civil($year_twi, $month_twi): array
 
 ////// Moon position
 
-function Moon_position($year_moon, $month_moon, $day_moon, $time_ut = "00:00:00"){
-    /// Constants on 00 Jan 2010///
-    $basis_jd_date = 2455196.5;
-    $mean_longitude_moon_basis_deg =  91.929336;
-    $mean_longitude_peregee_basis_deg = 130.143076;
-    $mean_longitude_asc_node_basis_deg = 291.682547;
-    $orbit_inclinat_deg = 5.145396;
-
-    //// longitudes calculation
-    $delta_days = julian_date($year_moon, $month_moon, $day_moon, $time_ut)  - $basis_jd_date;
-    //echo julian_date($year_moon, $month_moon, $day_moon)."<br>";
-    //echo time_dec($time_ut)."<br>";
-    $mean_longitude_moon_indate_deg = 13.1763966 * $delta_days + $mean_longitude_moon_basis_deg;
-    $mean_moon_anomaly_indate_deg = $mean_longitude_moon_indate_deg - 0.1114041 * $delta_days - $mean_longitude_peregee_basis_deg;
-    $mean_asc_node_longitude_indate_deg = $mean_longitude_asc_node_basis_deg - 0.0529539 * $delta_days;
-
-    ///// Corrections
-
-    /// Solar parameters
-    $n_days = julian_date($year_moon, $month_moon, $day_moon, $time_ut) - 2451545;
-    $n_centuries = $n_days / 36525;
-    $mean_longitude_sun_deg = 280.460 + 0.9856474 * $n_days;
-    $mean_anomaly_sun_deg = 357.528 + 0.98560003 * $n_days;
-    $mean_anomaly_sun_rad = deg2rad($mean_anomaly_sun_deg);
-    $ecliptic_longitude_sun_deg = $mean_longitude_sun_deg + 1.915 * sin($mean_anomaly_sun_rad) + 0.020 * sin(2*$mean_anomaly_sun_rad);
-
-    //// Correction 1: evection calculation
-    $c = $mean_longitude_moon_indate_deg - $ecliptic_longitude_sun_deg;
-    $evect = 1.2739 * sin(deg2rad(2 * $c - $mean_moon_anomaly_indate_deg));
-
-    //// Correction 2 and 3: annual equation and third correction
-    $ann_eq = 0.1858 * sin($mean_anomaly_sun_rad);
-    $ann_3 = 0.37 * sin($mean_anomaly_sun_rad);
-
-    //// Corrected moon anomaly
-    $mean_moon_anomaly_indate_deg_corr = $mean_moon_anomaly_indate_deg + $evect - $ann_eq - $ann_3;
-
-    //// Center correction and fourth correction
-    $cent_corr = 6.2886 * sin(deg2rad($mean_moon_anomaly_indate_deg_corr));
-    $ann_4 = 0.214 * sin(deg2rad(2 * $mean_moon_anomaly_indate_deg_corr));
-
-    //// Corrected mean longitude of the Moon
-    $mean_longitude_moon_deg_cor = $mean_longitude_moon_indate_deg + $evect + $cent_corr - $ann_eq + $ann_4;
-
-    //// Variation
-    $variation = 0.6583 * sin(deg2rad(2*($mean_longitude_moon_deg_cor - $ecliptic_longitude_sun_deg )));
-
-    //// Corrected ascending node longitude
-    $mean_asc_node_longitude_cor_deg = $mean_asc_node_longitude_indate_deg - 0.16 * sin($mean_anomaly_sun_rad);
-
-    //// True Moon orbital longitude
-    $true_moon_orb_longitude_deg = $mean_longitude_moon_deg_cor + $variation;
-
-    //// Ecliptic coordinates calculation for the Moon
-    $y = sin(deg2rad($true_moon_orb_longitude_deg - $mean_asc_node_longitude_cor_deg)) * cos(deg2rad($orbit_inclinat_deg));
-    $x = cos(deg2rad($true_moon_orb_longitude_deg - $mean_asc_node_longitude_cor_deg));
-    $quadrant_xy = 0;
-    if($y > 0 and $x > 0){
-        $quadrant_xy = 1;
+function Moon_position_new($year_moon, $month_moon, $day_moon, $time_ut = "00:00:00"){
+    global $altitude_place;
+    global $latitude_place_decimal_deg;
+    $JD_indate = julian_date($year_moon, $month_moon, $day_moon, $time_ut);
+    //echo "JD_indate".$JD_indate."<br>";
+    $T = ($JD_indate - 2451545) / 36525;
+    $L_shtr_mean_moon_longit = 218.3164477 + 481267.88123421 * $T - 0.0015786 * pow($T, 2) + (pow($T,3) / 538841) - (pow($T,4) / 65194000);
+    while($L_shtr_mean_moon_longit < 0){
+        $L_shtr_mean_moon_longit = $L_shtr_mean_moon_longit + 360;
     }
-    if($y > 0 and $x < 0){
-        $quadrant_xy = 2;
+    //echo " L_shtr_mean_moon_longit : ".$L_shtr_mean_moon_longit."<br>";
+    $D_mean_elong_moon = 297.8501921 + 445267.1114034 * $T - 0.0018819 * pow($T, 2) + (pow($T,3) / 545868) - (pow($T,4) / 113065000);
+    while($D_mean_elong_moon < 0){
+        $D_mean_elong_moon = $D_mean_elong_moon + 360;
     }
-    if($y < 0 and $x < 0){
-        $quadrant_xy = 3;
+    //echo "D_mean_elong_moon : ".$D_mean_elong_moon."<br>";
+    $M_mean_sun_anomaly = 357.5291092 + 35999.0502909 * $T - 0.0001536 * pow($T, 2) - (pow($T,3) / 24490000);
+    while($M_mean_sun_anomaly < 0){
+        $M_mean_sun_anomaly = $M_mean_sun_anomaly + 360;
     }
-    if($y < 0 and $x > 0){
-        $quadrant_xy = 4;
+    //echo "M_mean_sun_anomaly : ".$M_mean_sun_anomaly."<br>";
+    $M_shtr_moon_mean_anom = 134.9633964 + 477198.8675055 * $T + 0.0087414 * pow($T, 2) + (pow($T,3) / 69699) - (pow($T,4) / 14712000);
+    while($M_shtr_moon_mean_anom < 0){
+        $M_shtr_moon_mean_anom = $M_shtr_moon_mean_anom + 360;
     }
+    //echo "M_shtr_moon_mean_anom : ".$M_shtr_moon_mean_anom."<br>";
+    $F_moon_arg_latitude = 93.2720950 + 483202.0175233 * $T - 0.0036539 * pow($T, 2)  - (pow($T,3) / 3526000) + (pow($T,4) / 863310000);
+    while($F_moon_arg_latitude < 0){
+        $F_moon_arg_latitude = $F_moon_arg_latitude + 360;
+    }
+    //echo "F_moon_arg_latitude : ".$F_moon_arg_latitude."<br>";
+    $nutation_and_inclin = nutation_obliquity_correction($T);
+    $ecliptic_inclination_deg = 23.43929078 - (46.8150 / 3600) * $T - ((0.00059 / 3600) * pow($T, 2)) + ((0.001813 / 3600)*pow($T, 3)) + $nutation_and_inclin[1];
+    $L_shtr_mean_moon_longit_rad = deg2rad($L_shtr_mean_moon_longit);
+    $D_mean_elong_moon_rad = deg2rad($D_mean_elong_moon);
+    $M_mean_sun_anomaly_rad = deg2rad($M_mean_sun_anomaly);
+    $M_shtr_moon_mean_anom_rad = deg2rad($M_shtr_moon_mean_anom);
+    $F_moon_arg_latitude_rad = deg2rad($F_moon_arg_latitude);
+    $A1_deg = 119.75 + 131.849 * $T;
+    while($A1_deg < 0){
+        $A1_deg = $A1_deg + 360;
+    }
+    $A1_rad = deg2rad($A1_deg);
+    //echo " A1: ".$A1_deg."<br>";
+    $A2_deg = 53.09 + 479264.290 * $T;
+    while($A2_deg < 0){
+        $A2_deg = $A2_deg + 360;
+    }
+    $A2_rad = deg2rad($A2_deg);
+    //echo " A2: ".rad2deg($A2_rad)."<br>";
+   $A3_deg = 313.45 + 481266.484 * $T;
+    while($A3_deg < 0){
+        $A3_deg = $A3_deg + 360;
+    }
+    $A3_rad = deg2rad($A3_deg);
+    //echo " A3: ". rad2deg($A3_rad)."<br>";
+    $E = 1 - 0.002516 * $T - 0.0000074 * pow($T, 2);
+    //echo " E: ". $E."<br>";
 
-    $moon_ecl_longitude_deg = rad2deg(atan($y / $x));
+    ////// coefficients of sum array
+    $c1 = sin($M_shtr_moon_mean_anom_rad);
+    $c2 = sin(2* $D_mean_elong_moon_rad - $M_shtr_moon_mean_anom_rad);
+    $c3 = sin(2 * $D_mean_elong_moon_rad);
+    $c4 = sin(2 * $M_shtr_moon_mean_anom_rad);
+    $c5 = $E * sin($M_mean_sun_anomaly_rad);
+    $c6 = sin(2 * $F_moon_arg_latitude_rad);
+    $c7 = sin(2 * $D_mean_elong_moon_rad - 2 * $M_shtr_moon_mean_anom_rad);
+    $c8 = $E * sin(2 * $D_mean_elong_moon_rad - $M_mean_sun_anomaly_rad - $M_shtr_moon_mean_anom_rad);
+    $c9 = sin(2  * $D_mean_elong_moon_rad + $M_shtr_moon_mean_anom_rad);
+    $c10 = $E * sin(2  * $D_mean_elong_moon_rad - $M_mean_sun_anomaly_rad);
+    $c11 = $E * sin($M_mean_sun_anomaly_rad - $M_shtr_moon_mean_anom_rad);
+    $c12 = sin($D_mean_elong_moon_rad);
+    $c13 = $E * sin($M_mean_sun_anomaly_rad + $M_shtr_moon_mean_anom_rad);
+    $c14 = sin(2 * $D_mean_elong_moon_rad - 2 * $F_moon_arg_latitude_rad);
+    $c15 = sin($M_shtr_moon_mean_anom_rad + 2 * $F_moon_arg_latitude_rad);
+    $c16 = sin($M_shtr_moon_mean_anom_rad  - 2 * $F_moon_arg_latitude_rad);
+    $c17 = sin(4 * $D_mean_elong_moon_rad - $M_shtr_moon_mean_anom_rad);
+    $c18 = sin(3 * $M_shtr_moon_mean_anom_rad);
+    $c19 = sin(4 * $D_mean_elong_moon_rad - 2 * $M_shtr_moon_mean_anom_rad);;
+    $c20 = $E * sin(2 * $D_mean_elong_moon_rad + $M_mean_sun_anomaly_rad - $M_shtr_moon_mean_anom_rad);
+    $c21 = $E * sin(2 * $D_mean_elong_moon_rad + $M_mean_sun_anomaly_rad);
+    $c22 = sin($D_mean_elong_moon_rad - $M_shtr_moon_mean_anom_rad);
+    $c23 = $E * sin($D_mean_elong_moon_rad + $M_mean_sun_anomaly_rad);
+    $c24 = $E * sin(2 * $D_mean_elong_moon_rad - $M_mean_sun_anomaly_rad + $M_shtr_moon_mean_anom_rad);
+    $c25 = sin(2 * $D_mean_elong_moon_rad + 2 * $M_shtr_moon_mean_anom_rad);
+    $c26 = sin(4 * $D_mean_elong_moon_rad);
+    $c27 = sin(2 * $D_mean_elong_moon_rad - 3 * $M_shtr_moon_mean_anom_rad);
+    $c28 = $E * sin($M_mean_sun_anomaly_rad - 2 * $M_shtr_moon_mean_anom_rad);
+    $c29 = sin(2 * $D_mean_elong_moon_rad - $M_shtr_moon_mean_anom_rad + 2 * $F_moon_arg_latitude_rad);
+    $c30 = $E * sin(2 * $D_mean_elong_moon_rad - $M_mean_sun_anomaly_rad - 2 * $M_shtr_moon_mean_anom_rad);
+    $c31 = sin($D_mean_elong_moon_rad + $M_shtr_moon_mean_anom_rad);
+    $c32 = pow($E,2) * sin(2 * $D_mean_elong_moon_rad - 2 * $M_mean_sun_anomaly_rad);
+    $c33 = $E * sin($M_mean_sun_anomaly_rad + 2 * $M_shtr_moon_mean_anom_rad);
+    $c34 = pow($E,2) * sin(2 * $M_mean_sun_anomaly_rad);
+    $c35 = pow($E,2) * sin(2 * $D_mean_elong_moon_rad - 2 * $M_mean_sun_anomaly_rad - $M_shtr_moon_mean_anom_rad);
+    $c36 = sin(2 * $D_mean_elong_moon_rad + $M_shtr_moon_mean_anom_rad - 2 * $F_moon_arg_latitude_rad);
+    $c37 = sin(2 * $D_mean_elong_moon_rad + 2 * $F_moon_arg_latitude_rad);
+    $c38 = $E * sin(4 * $D_mean_elong_moon_rad - $M_mean_sun_anomaly_rad - $M_shtr_moon_mean_anom_rad);
+    $c39 = sin(2 * $M_shtr_moon_mean_anom_rad + 2 * $F_moon_arg_latitude_rad);
+    $c40 = sin(3 * $D_mean_elong_moon_rad - $M_shtr_moon_mean_anom_rad);
+    $c41 = $E * sin(2 * $D_mean_elong_moon_rad + $M_mean_sun_anomaly_rad + $M_shtr_moon_mean_anom_rad);
+    $c42 = $E * sin(4 * $D_mean_elong_moon_rad - $M_mean_sun_anomaly_rad - 2 * $M_shtr_moon_mean_anom_rad);
+    $c43 = pow($E,2) * sin(2 * $M_mean_sun_anomaly_rad - $M_shtr_moon_mean_anom_rad);
+    $c44 = pow($E,2) * sin(2 * $D_mean_elong_moon_rad + 2 * $M_mean_sun_anomaly_rad - $M_shtr_moon_mean_anom_rad);
+    $c45 = $E * sin(2 * $D_mean_elong_moon_rad + $M_mean_sun_anomaly_rad - 2 * $M_shtr_moon_mean_anom_rad);
+    $c46 = $E * sin(2 * $D_mean_elong_moon_rad - $M_mean_sun_anomaly_rad - 2 * $F_moon_arg_latitude_rad);
+    $c47 = sin(4 * $D_mean_elong_moon_rad + $M_shtr_moon_mean_anom_rad);
+    $c48 = sin(4 * $M_shtr_moon_mean_anom_rad);
+    $c49 = $E * sin(4 * $D_mean_elong_moon_rad - $M_mean_sun_anomaly_rad);
+    $c50 = sin($D_mean_elong_moon_rad - 2 * $M_shtr_moon_mean_anom_rad);
+    $c51 = $E * sin(2 * $D_mean_elong_moon_rad + $M_mean_sun_anomaly_rad - 2 * $F_moon_arg_latitude_rad);
+    $c52 = sin(2 * $M_shtr_moon_mean_anom_rad - 2 * $F_moon_arg_latitude_rad);
+    $c53 = $E * sin($D_mean_elong_moon_rad + $M_mean_sun_anomaly_rad + $M_shtr_moon_mean_anom_rad);
+    $c54 = sin(3 * $D_mean_elong_moon_rad - 2 * $M_shtr_moon_mean_anom_rad);
+    $c55 = sin(4 * $D_mean_elong_moon_rad - 3 * $M_shtr_moon_mean_anom_rad);
+    $c56 = $E * sin(2 * $D_mean_elong_moon_rad - $M_mean_sun_anomaly_rad + 2 * $M_shtr_moon_mean_anom_rad);
+    $c57 = pow($E,2) * sin(2 * $M_mean_sun_anomaly_rad + $M_shtr_moon_mean_anom_rad);
+    $c58 = $E * sin($D_mean_elong_moon_rad + $M_mean_sun_anomaly_rad - $M_shtr_moon_mean_anom_rad);
+    $c59 = sin(2 * $D_mean_elong_moon_rad  + 3 * $M_shtr_moon_mean_anom_rad);
+    //$c60 = sin(2 * $D_mean_elong_moon_rad - $M_shtr_moon_mean_anom_rad - 2 * $F_moon_arg_latitude_rad);
 
-    $quadrant_ecl = 0;
-    if($moon_ecl_longitude_deg > 0){
-        if($moon_ecl_longitude_deg > 0 and $moon_ecl_longitude_deg < 90 ){
-            $quadrant_ecl = 1;
-        }
-        if($moon_ecl_longitude_deg > 90 and $moon_ecl_longitude_deg < 180){
-            $quadrant_ecl = 2;
-        }
-        if(($moon_ecl_longitude_deg > 180 and $moon_ecl_longitude_deg < 270)){
-            $quadrant_ecl = 3;
-        }
-        if(($moon_ecl_longitude_deg > 270 and $moon_ecl_longitude_deg < 360)){
-            $quadrant_ecl = 4;
-        }
-    }
-    else{
-        if(abs($moon_ecl_longitude_deg) > 0 and abs($moon_ecl_longitude_deg) < 90 ){
-            $quadrant_ecl = 4;
-        }
-        if(abs($moon_ecl_longitude_deg) > 90 and abs($moon_ecl_longitude_deg) < 180){
-            $quadrant_ecl = 3;
-        }
-        if((abs($moon_ecl_longitude_deg) > 180 and abs($moon_ecl_longitude_deg) < 270)){
-            $quadrant_ecl = 2;
-        }
-        if((abs($moon_ecl_longitude_deg) > 270 and abs($moon_ecl_longitude_deg) < 360)){
-            $quadrant_ecl = 1;
-        }
-    }
 
-    if($moon_ecl_longitude_deg > 0 and ($quadrant_ecl != $quadrant_xy)){
-        if($quadrant_ecl == 1 and $quadrant_xy == 3){
-            $moon_ecl_longitude_deg = $moon_ecl_longitude_deg + 180;
-        }
-        if($quadrant_ecl == 2 and $quadrant_xy == 4){
-            $moon_ecl_longitude_deg = $moon_ecl_longitude_deg + 180;
-        }
-        if($quadrant_ecl == 3 and $quadrant_xy == 1){
-            $moon_ecl_longitude_deg = $moon_ecl_longitude_deg - 180;
-        }
-        if($quadrant_ecl == 4 and $quadrant_xy == 2){
-            $moon_ecl_longitude_deg = $moon_ecl_longitude_deg - 180;
-        }
-    }
-    elseif($moon_ecl_longitude_deg < 0 and ($quadrant_ecl != $quadrant_xy)){
-        if($quadrant_ecl == 1 and $quadrant_xy == 3){
-            $moon_ecl_longitude_deg = $moon_ecl_longitude_deg - 180;
-        }
-        if($quadrant_ecl == 2 and $quadrant_xy == 4){
-            $moon_ecl_longitude_deg = $moon_ecl_longitude_deg - 180;
-        }
-        if($quadrant_ecl == 3 and $quadrant_xy == 1){
-            $moon_ecl_longitude_deg = $moon_ecl_longitude_deg + 180;
-        }
-        if($quadrant_ecl == 4 and $quadrant_xy == 2){
-            $moon_ecl_longitude_deg = $moon_ecl_longitude_deg + 180;
-        }
-    }
-    elseif ($moon_ecl_longitude_deg < 0 and ($quadrant_ecl == $quadrant_xy) and (($y / $x) > 0)){
-        $moon_ecl_longitude_deg = $moon_ecl_longitude_deg + 360;
-    }
-    elseif ($moon_ecl_longitude_deg > 0 and ($quadrant_ecl == $quadrant_xy) and (($y / $x) < 0)){
-        $moon_ecl_longitude_deg = $moon_ecl_longitude_deg - 360;
-    }
-    ////// Moon ecliptic coordinates
-    $moon_ecl_longitude_cor_deg = $moon_ecl_longitude_deg + $mean_asc_node_longitude_cor_deg;
-    $moon_ecl_latitude_deg = rad2deg(asin(sin(deg2rad($true_moon_orb_longitude_deg - $mean_asc_node_longitude_cor_deg)) * sin(deg2rad($orbit_inclinat_deg))));
+    ////// sum of longitude's elements
+    $longitude_sum_arr = array();
+    $l1 = 6288774 * $c1;
+    array_push($longitude_sum_arr, $l1);
+    $l2 = 1274027 * $c2;
+    array_push($longitude_sum_arr, $l2);
+    $l3 = 658314 * $c3;
+    array_push($longitude_sum_arr, $l3);
+    $l4 = 213618 * $c4;
+    array_push($longitude_sum_arr, $l4);
+    $l5 = -185116 * $c5;
+    array_push($longitude_sum_arr, $l5);
+    $l6 = -114332 * $c6;
+    array_push($longitude_sum_arr, $l6);
+    $l7 = 58793 * $c7;
+    array_push($longitude_sum_arr, $l7);
+    $l8 = 57066 * $c8;
+    array_push($longitude_sum_arr, $l8);
+    $l9 = 53322 * $c9;
+    array_push($longitude_sum_arr, $l9);
+    $l10 = 45758 * $c10;
+    array_push($longitude_sum_arr, $l10);
+    $l11 = -40923 * $c11;
+    array_push($longitude_sum_arr, $l11);
+    $l12 = -34720 * $c12;
+    array_push($longitude_sum_arr, $l12);
+    $l13 = -30383 * $E * $c13;
+    array_push($longitude_sum_arr, $l13);
+    $l14 = 15327 * $c14;
+    array_push($longitude_sum_arr, $l14);
+    $l15 = -12528 * $c15;
+    array_push($longitude_sum_arr, $l15);
+    $l16 = 10980 * $c16;
+    array_push($longitude_sum_arr, $l16);
+    $l17 = 10675 * $c17;
+    array_push($longitude_sum_arr, $l17);
+    $l18 = 10034 * $c18;
+    array_push($longitude_sum_arr, $l18);
+    $l19 = 8548 * $c19;
+    array_push($longitude_sum_arr, $l19);
+    $l20 = -7888 * $c20;
+    array_push($longitude_sum_arr, $l20);
+    $l21 = -6766 * $c21;
+    array_push($longitude_sum_arr, $l21);
+    $l22 = -5163 * $c22;
+    array_push($longitude_sum_arr, $l22);
+    $l23 = 4987 * $c23;
+    array_push($longitude_sum_arr, $l23);
+    $l24 = 4036 * $c24;
+    array_push($longitude_sum_arr, $l24);
+    $l25 = 3994 * $c25;
+    array_push($longitude_sum_arr, $l25);
+    $l26 = 3861 * $c26;
+    array_push($longitude_sum_arr, $l26);
+    $l27 = 3665 * $c27;
+    array_push($longitude_sum_arr, $l27);
+    $l28 = -2689 * $c28;
+    array_push($longitude_sum_arr, $l28);
+    $l29 = -2602 * $c29;
+    array_push($longitude_sum_arr, $l29);
+    $l30 = 2390 * $c30;
+    array_push($longitude_sum_arr, $l30);
+    $l31 = -2348 * $c31;
+    array_push($longitude_sum_arr, $l31);
+    $l32 = 2236 * $c32;
+    array_push($longitude_sum_arr, $l32);
+    $l33 = -2120 * $c33;
+    array_push($longitude_sum_arr, $l33);
+    $l34 = -2069 * $c34;
+    array_push($longitude_sum_arr, $l34);
+    $l35 = 2048 * $c35;
+    array_push($longitude_sum_arr, $l35);
+    $l36 = -1773 * $c36;
+    array_push($longitude_sum_arr, $l36);
+    $l37 = -1595 * $c37;
+    array_push($longitude_sum_arr, $l37);
+    $l38 = 1215 * $c38;
+    array_push($longitude_sum_arr, $l38);
+    $l39 = -1110 * $c39;
+    array_push($longitude_sum_arr, $l39);
+    $l40 = -892 * $c40;
+    array_push($longitude_sum_arr, $l40);
+    $l41 = -810 * $c41;
+    array_push($longitude_sum_arr, $l41);
+    $l42 = 759 * $c42;
+    array_push($longitude_sum_arr, $l42);
+    $l43 = -713 * $c43;
+    array_push($longitude_sum_arr, $l43);
+    $l44 = -700 * $c44;
+    array_push($longitude_sum_arr, $l44);
+    $l45 = 691 * $c45;
+    array_push($longitude_sum_arr, $l45);
+    $l46 = 596 * $c46;
+    array_push($longitude_sum_arr, $l46);
+    $l47 = 549 * $c47;
+    array_push($longitude_sum_arr, $l47);
+    $l48 = 537 * $c48;
+    array_push($longitude_sum_arr, $l48);
+    $l49 = 520 * $c49;
+    array_push($longitude_sum_arr, $l49);
+    $l50 = -487 * $c50;
+    array_push($longitude_sum_arr, $l50);
+    $l51 = - 399 * $c51;
+    array_push($longitude_sum_arr, $l51);
+    $l52 = -381 * $c52;
+    array_push($longitude_sum_arr, $l52);
+    $l53 = 351 * $c53;
+    array_push($longitude_sum_arr, $l53);
+    $l54 = -340 * $c54;
+    array_push($longitude_sum_arr, $l54);
+    $l55 = 330 * $c55;
+    array_push($longitude_sum_arr, $l55);
+    $l56 = 327 * $c56;
+    array_push($longitude_sum_arr, $l56);
+    $l57 = -323 * $c57;
+    array_push($longitude_sum_arr, $l57);
+    $l58 = 299 * $c58;
+    array_push($longitude_sum_arr, $l58);
+    $l59 = 294 * $c59;
+    array_push($longitude_sum_arr, $l59);
+    $longitude_sum_deg = array_sum($longitude_sum_arr);
+    $longitude_sum_add_deg = $longitude_sum_deg + 3958 * sin($A1_rad) + 1962 * sin($L_shtr_mean_moon_longit_rad - $F_moon_arg_latitude_rad) + 318 * sin($A2_rad);
+    $dist_add = distance_array($E, $D_mean_elong_moon_rad, $M_mean_sun_anomaly_rad, $M_shtr_moon_mean_anom_rad, $F_moon_arg_latitude_rad);
+    $dist_km = 385000.56 + ($dist_add / 1000);
+    $parallax_moon_sin_pi = 6378.14 / $dist_km;
+    $longitude_moon_deg = $L_shtr_mean_moon_longit + ($longitude_sum_add_deg / 1000000) + $nutation_and_inclin[0];
+    //echo "longitude_moon_deg: ".$longitude_moon_deg."<br>";
 
-    ///// Moon RA and DEC coordinates from ecliptic coordinates
-    /// Right ascention
-    $ecliptic_inclination_deg = 23.43929111 - (46.8150 / 3600) * $n_centuries - ((0.00059 / 3600) * pow($n_centuries, 2)) + ((0.001813 / 3600)*pow($n_centuries, 3));
-    $y1 = sin(deg2rad($moon_ecl_longitude_cor_deg)) * cos(deg2rad($ecliptic_inclination_deg)) - tan(deg2rad($moon_ecl_latitude_deg)) * sin(deg2rad($ecliptic_inclination_deg));
-    $x1 = cos(deg2rad($moon_ecl_longitude_cor_deg));
+    /// Equation of the center
+    //$Eq_center_deg = ($l1 + $l4 + $l18) / 1000000;
+
+    //// ecliptic latitude of the Moon
+    $latitide_add = array();
+    $b1 = 5128122 * sin($F_moon_arg_latitude_rad);
+    array_push($latitide_add, $b1);
+    $b2 = 280602 * sin($M_shtr_moon_mean_anom_rad + $F_moon_arg_latitude_rad);
+    array_push($latitide_add, $b2);
+    $b3 = 277693 * sin($M_shtr_moon_mean_anom_rad - $F_moon_arg_latitude_rad);
+    array_push($latitide_add, $b3);
+    $b4 = 173237 * sin(2 * $D_mean_elong_moon_rad - $F_moon_arg_latitude_rad);
+    array_push($latitide_add, $b4);
+    $b5 = 55413 * sin(2 * $D_mean_elong_moon_rad - $M_shtr_moon_mean_anom_rad + $F_moon_arg_latitude_rad);
+    array_push($latitide_add, $b5);
+    $b6 = 46271 * sin(2 * $D_mean_elong_moon_rad - $M_shtr_moon_mean_anom_rad - $F_moon_arg_latitude_rad);
+    array_push($latitide_add, $b6);
+    $b7 = 32573 * sin(2 * $D_mean_elong_moon_rad + $F_moon_arg_latitude_rad);
+    array_push($latitide_add, $b7);
+    $b8 = 17198 * sin(2 * $M_shtr_moon_mean_anom_rad + $F_moon_arg_latitude_rad);
+    array_push($latitide_add, $b8);
+    $b9 = 9266 * sin(2 * $D_mean_elong_moon_rad + $M_shtr_moon_mean_anom_rad - $F_moon_arg_latitude_rad);
+    array_push($latitide_add, $b9);
+    $b10 = 8822 * sin(2 * $M_shtr_moon_mean_anom_rad - $F_moon_arg_latitude_rad);
+    array_push($latitide_add, $b10);
+    $b11 = $E * 8216 * sin(2 * $D_mean_elong_moon_rad - $M_mean_sun_anomaly_rad - $F_moon_arg_latitude_rad);
+    array_push($latitide_add, $b11);
+    $b12 = 4324 * sin(2 * $D_mean_elong_moon_rad - 2 * $M_shtr_moon_mean_anom_rad - $F_moon_arg_latitude_rad);
+    array_push($latitide_add, $b12);
+    $b13 = 4200 * sin(2 * $D_mean_elong_moon_rad + $M_shtr_moon_mean_anom_rad + $F_moon_arg_latitude_rad);
+    array_push($latitide_add, $b13);
+    $b14 = $E * (-3359) * sin(2 * $D_mean_elong_moon_rad + $M_mean_sun_anomaly_rad - $F_moon_arg_latitude_rad);
+    array_push($latitide_add, $b14);
+    $b15 = $E * 2463 * sin(2 * $D_mean_elong_moon_rad - $M_mean_sun_anomaly_rad - $M_shtr_moon_mean_anom_rad + $F_moon_arg_latitude_rad);
+    array_push($latitide_add, $b15);
+    $b16 = $E * 2211 * sin(2 * $D_mean_elong_moon_rad - $M_mean_sun_anomaly_rad + $F_moon_arg_latitude_rad);
+    array_push($latitide_add, $b16);
+    $b17 = $E * 2065 *  sin(2 * $D_mean_elong_moon_rad - $M_mean_sun_anomaly_rad - $M_shtr_moon_mean_anom_rad - $F_moon_arg_latitude_rad);
+    array_push($latitide_add, $b17);
+    $b18 = $E * (-1870) * sin($M_mean_sun_anomaly_rad - $M_shtr_moon_mean_anom_rad - $F_moon_arg_latitude_rad);
+    array_push($latitide_add, $b18);
+    $b19 = 1828 * sin(4 * $D_mean_elong_moon_rad - $M_shtr_moon_mean_anom_rad - $F_moon_arg_latitude_rad);
+    array_push($latitide_add, $b19);
+    $b20 = $E * (-1794) * sin($M_mean_sun_anomaly_rad + $F_moon_arg_latitude_rad);
+    array_push($latitide_add, $b20);
+    $b21 = -1749 * sin(3 * $F_moon_arg_latitude_rad);
+    array_push($latitide_add, $b21);
+    $b22 = $E * (-1565) * sin($M_mean_sun_anomaly_rad - $M_shtr_moon_mean_anom_rad + $F_moon_arg_latitude_rad);
+    array_push($latitide_add, $b22);
+    $b23 = -1491 * sin($D_mean_elong_moon_rad + $F_moon_arg_latitude_rad);
+    array_push($latitide_add, $b23);
+    $b24 = $E * (-1475) * sin($M_mean_sun_anomaly_rad + $M_shtr_moon_mean_anom_rad + $F_moon_arg_latitude_rad);
+    array_push($latitide_add, $b24);
+    $b25 = $E * (-1410) * sin($M_mean_sun_anomaly_rad + $M_shtr_moon_mean_anom_rad - $F_moon_arg_latitude_rad);
+    array_push($latitide_add, $b25);
+    $b26 = $E * (-1344) * sin($M_mean_sun_anomaly_rad - $F_moon_arg_latitude_rad);
+    array_push($latitide_add, $b26);
+    $b27 = -1335 * sin($D_mean_elong_moon_rad - $F_moon_arg_latitude_rad);
+    array_push($latitide_add, $b27);
+    $b28 = 1107 * sin(3 * $M_shtr_moon_mean_anom_rad + $F_moon_arg_latitude_rad);
+    array_push($latitide_add, $b28);
+    $b29 = 1021 * sin(4 * $D_mean_elong_moon_rad - $F_moon_arg_latitude_rad);
+    array_push($latitide_add, $b29);
+    $b30 = 833 * sin(4 * $D_mean_elong_moon_rad - $M_shtr_moon_mean_anom_rad + $F_moon_arg_latitude_rad);
+    array_push($latitide_add, $b30);
+    $b31 = 777 * sin($M_shtr_moon_mean_anom_rad - 3 * $F_moon_arg_latitude_rad);
+    array_push($latitide_add, $b31);
+    $b32 = 671 * sin(4 * $D_mean_elong_moon_rad - 2 * $M_shtr_moon_mean_anom_rad + $F_moon_arg_latitude_rad);
+    array_push($latitide_add, $b32);
+    $b33 = 607 * sin(2 * $D_mean_elong_moon_rad  - 3 * $F_moon_arg_latitude_rad);
+    array_push($latitide_add, $b33);
+    $b34 = 596 * sin(2 * $D_mean_elong_moon_rad + 2 * $M_shtr_moon_mean_anom_rad - $F_moon_arg_latitude_rad);
+    array_push($latitide_add, $b34);
+    $b35 = $E * 491 * sin(2 * $D_mean_elong_moon_rad - $M_mean_sun_anomaly_rad + $M_shtr_moon_mean_anom_rad - $F_moon_arg_latitude_rad);
+    array_push($latitide_add, $b35);
+    $b36 = -451 * sin(2 * $D_mean_elong_moon_rad - 2 * $M_shtr_moon_mean_anom_rad + $F_moon_arg_latitude_rad);
+    array_push($latitide_add, $b36);
+    $b37 = 439 * sin(3 * $M_shtr_moon_mean_anom_rad - $F_moon_arg_latitude_rad);
+    array_push($latitide_add, $b37);
+    $b38 = 422 * sin(2 * $D_mean_elong_moon_rad  + 2 * $M_shtr_moon_mean_anom_rad + $F_moon_arg_latitude_rad);
+    array_push($latitide_add, $b38);
+    $b39 = 421 * sin(2 * $D_mean_elong_moon_rad - 3 * $M_shtr_moon_mean_anom_rad - $F_moon_arg_latitude_rad);
+    array_push($latitide_add, $b39);
+    $b40 = $E * (-366) * sin(2 * $D_mean_elong_moon_rad + $M_mean_sun_anomaly_rad - $M_shtr_moon_mean_anom_rad + $F_moon_arg_latitude_rad);
+    array_push($latitide_add, $b40);
+    $b41 = $E * (-351) * sin(2 * $D_mean_elong_moon_rad + $M_mean_sun_anomaly_rad + $F_moon_arg_latitude_rad);
+    array_push($latitide_add, $b41);
+    $b42 = 331 * sin(4 * $D_mean_elong_moon_rad + $F_moon_arg_latitude_rad);
+    array_push($latitide_add, $b42);
+    $b43 = $E * 315 * sin(2 * $D_mean_elong_moon_rad - $M_mean_sun_anomaly_rad + $M_shtr_moon_mean_anom_rad + $F_moon_arg_latitude_rad);
+    array_push($latitide_add, $b43);
+    $b44 = pow($E, 2) * 302 * sin(2 * $D_mean_elong_moon_rad - 2 * $M_mean_sun_anomaly_rad - $F_moon_arg_latitude_rad);
+    array_push($latitide_add, $b44);
+    $b45 = -283 * sin($M_shtr_moon_mean_anom_rad + 3 * $F_moon_arg_latitude_rad);
+    array_push($latitide_add, $b45);
+    $b46 = $E * (-229) * sin(2 * $D_mean_elong_moon_rad + $M_mean_sun_anomaly_rad + $M_shtr_moon_mean_anom_rad - $F_moon_arg_latitude_rad);
+    array_push($latitide_add, $b46);
+    $b47 = $E * 223 * sin($D_mean_elong_moon_rad + $M_mean_sun_anomaly_rad - $F_moon_arg_latitude_rad);
+    array_push($latitide_add, $b47);
+    $b48 = $E * 223 * sin($D_mean_elong_moon_rad + $M_mean_sun_anomaly_rad + $F_moon_arg_latitude_rad);
+    array_push($latitide_add, $b48);
+    $b49 = $E * (-220) * sin($M_mean_sun_anomaly_rad - 2 * $M_shtr_moon_mean_anom_rad - $F_moon_arg_latitude_rad);
+    array_push($latitide_add, $b49);
+    $b50 = $E * (-220) * sin(2 * $D_mean_elong_moon_rad + $M_mean_sun_anomaly_rad - $M_shtr_moon_mean_anom_rad - $F_moon_arg_latitude_rad);
+    array_push($latitide_add, $b50);
+    $b51 = -185 * sin($D_mean_elong_moon_rad + $M_shtr_moon_mean_anom_rad + $F_moon_arg_latitude_rad);
+    array_push($latitide_add, $b51);
+    $b52 = $E * 181 * sin(2 * $D_mean_elong_moon_rad - $M_mean_sun_anomaly_rad - 2 * $M_shtr_moon_mean_anom_rad - $F_moon_arg_latitude_rad);
+    array_push($latitide_add, $b52);
+    $b53 = $E * (-177) * sin($M_mean_sun_anomaly_rad + 2 * $M_shtr_moon_mean_anom_rad + $F_moon_arg_latitude_rad);
+    array_push($latitide_add, $b53);
+    $b54 = 176 * sin(4 * $D_mean_elong_moon_rad - 2 * $M_shtr_moon_mean_anom_rad - $F_moon_arg_latitude_rad);
+    array_push($latitide_add, $b54);
+    $b55 = $E * 166 * sin(4 * $D_mean_elong_moon_rad - $M_mean_sun_anomaly_rad - $M_shtr_moon_mean_anom_rad - $F_moon_arg_latitude_rad);
+    array_push($latitide_add, $b55);
+    $b56 = -164 * sin($D_mean_elong_moon_rad + $M_shtr_moon_mean_anom_rad - $F_moon_arg_latitude_rad);
+    array_push($latitide_add, $b56);
+    $b57 = 132 * sin(4 * $D_mean_elong_moon_rad + $M_shtr_moon_mean_anom_rad - $F_moon_arg_latitude_rad);
+    array_push($latitide_add, $b57);
+    $b58 = -119 * sin($D_mean_elong_moon_rad - $M_shtr_moon_mean_anom_rad - $F_moon_arg_latitude_rad);
+    array_push($latitide_add, $b58);
+    $b59 = $E * 115 * sin(4 * $D_mean_elong_moon_rad - $M_mean_sun_anomaly_rad - $F_moon_arg_latitude_rad);
+    array_push($latitide_add, $b59);
+    $b60 = pow($E, 2) * 107 * sin(2 * $D_mean_elong_moon_rad - 2 * $M_mean_sun_anomaly_rad + $F_moon_arg_latitude_rad);
+    array_push($latitide_add, $b60);
+    $latitude_corr = array_sum($latitide_add);
+    $latitude_add = $latitude_corr - 2235 * sin($L_shtr_mean_moon_longit_rad) + 382 * sin($A3_rad) + 175 * sin($A1_rad - $F_moon_arg_latitude_rad) + 175 * sin($A1_rad + $F_moon_arg_latitude_rad) + 127 * sin($L_shtr_mean_moon_longit_rad - $M_shtr_moon_mean_anom_rad) - 115 * sin($L_shtr_mean_moon_longit_rad + $M_shtr_moon_mean_anom_rad);
+    $latitude_moon_ecl_deg = $latitude_add / 1000000;
+    //echo "latitude_moon_ecl_deg: ".$latitude_moon_ecl_deg."<br>";
+    //echo "sum_longit: ".$longitude_sum_add_deg."<br>";
+    //echo "sum_r: ".$dist_add."<br>";
+    //echo "latitude_add: :" .$latitude_add."<br>";
+
+    $y1 = sin(deg2rad($longitude_moon_deg)) * cos(deg2rad($ecliptic_inclination_deg)) - tan(deg2rad($latitude_moon_ecl_deg)) * sin(deg2rad($ecliptic_inclination_deg));
+    $x1 = cos(deg2rad($longitude_moon_deg));
     //echo "y1: ".$y1."<br>";
     //echo "x1: ".$x1."<br>";
     $quadrant_xy1 = 0;
@@ -1300,317 +1541,474 @@ function Moon_position($year_moon, $month_moon, $day_moon, $time_ut = "00:00:00"
     }
 
     //// Declination
-    $Dec_moon_deg = rad2deg(asin(sin(deg2rad($moon_ecl_latitude_deg)) * cos(deg2rad($ecliptic_inclination_deg)) + cos(deg2rad($moon_ecl_latitude_deg)) * sin(deg2rad($ecliptic_inclination_deg)) * sin(deg2rad($moon_ecl_longitude_cor_deg))));
+    $Dec_moon_deg = rad2deg(asin(sin(deg2rad($latitude_moon_ecl_deg)) * cos(deg2rad($ecliptic_inclination_deg)) + cos(deg2rad($latitude_moon_ecl_deg)) * sin(deg2rad($ecliptic_inclination_deg)) * sin(deg2rad($longitude_moon_deg))));
 
-    //echo "moon_ecl_longitude_cor_deg: ".$moon_ecl_longitude_cor_deg."<br>";
-    //echo "moon_ecl_latitude_deg: ".$moon_ecl_latitude_deg."<br>";
-    $moon_ecl_coord_deg_dec = array($moon_ecl_longitude_cor_deg, $moon_ecl_latitude_deg, $ecliptic_longitude_sun_deg, $true_moon_orb_longitude_deg, $mean_moon_anomaly_indate_deg_corr, $cent_corr, $RA_moon_hour_dec, $Dec_moon_deg);
+    //echo "RA_moon_hour_dec: ".hours_to_sep($RA_moon_hour_dec)."<br>";
+    //echo "Dec_moon_deg: ".hours_to_sep($Dec_moon_deg)."<br>";
 
-    return $moon_ecl_coord_deg_dec;
-}
-/*
- the function returns an array
-[0] - Moon ecliptic longitude in degrees ($moon_ecl_longitude_cor_deg)
-[1] - Moon ecliptic latitude in degrees ($moon_ecl_latitude_deg)
-[2] - Sun ecliptic longitude in degrees ($ecliptic_longitude_sun_deg)
-[3] - Moon true orbital longitude in degrees ($true_moon_orb_longitude_deg)
-[4] - Moon mean anomaly in degrees ($mean_moon_anomaly_indate_deg_corr)
-[5] - Equation of the center ($cent_corr)
-[6] - Right ascension of the Moon in decimal hours ($RA_moon_hour_dec)
-[7] - Moon declination in degrees ($Dec_moon_deg)
-*/
-//$moon_pos = Moon_position(2003,9,1);
-//echo "RA: ".$moon_pos[6]."<br>";
-//echo "DEC: ".$moon_pos[7]."<br>";
-//echo "lambda: ".($moon_pos[0] - 360)."<br>";
-//echo "betta: ".$moon_pos[1]."<br>";
+    /// Parallax correction
+    //$loc_sid_time = LST($year_moon, $month_moon, $day_moon, $time_ut);
+    //$hour_angle_hour = $loc_sid_time - $RA_moon_hour_dec;
+    //$hour_angle_deg = $hour_angle_hour * 15;
+    $hour_angl_hour_dec = Local_time_to_LST($year_moon, $month_moon, $day_moon, $time_ut) - $RA_moon_hour_dec;
+    //echo "hour_angl_hour_dec".$hour_angl_hour_dec."<br>";
+    $hour_angle_deg = $hour_angl_hour_dec * 15;
+    if($hour_angle_deg < 0){
+        $hour_angle_deg = $hour_angle_deg + 360;
+    }
+    $u_rad = atan(0.99664719 * tan(deg2rad($latitude_place_decimal_deg)));
+    $rho_sin_phi = 0.9964719 * sin($u_rad) + ($altitude_place / 6378140) * sin(deg2rad($latitude_place_decimal_deg));
+    $rho_cos_phi = cos($u_rad) + ($altitude_place / 6378140) * cos(deg2rad($latitude_place_decimal_deg));
 
-function Moon_position_new($year_moon, $month_moon, $day_moon, $time_ut = "00:00:00"){
-    $JD_indate = julian_date($year_moon, $month_moon, $day_moon, $time_ut);
-    $T = ($JD_indate - 2451545) / 36525;
-    $L_shtr_mean_moon_longit = 218.3164477 + 481267.88123421 * $T - 0.0015786 * pow($T, 2) + (pow($T,3) / 538841) - (pow($T,4) / 65194000);
-    $D_mean_elong_moon = 297.8501921 + 445267.1114034 * $T - 0.0018819 * pow($T, 2) + (pow($T,3) / 545868) - (pow($T,4) / 113065000);
-    $M_mean_sun_anomaly = 357.5291092 + 35999.0502909 * $T - 0.0001536 * pow($T, 2) - (pow($T,3) / 24490000);
-    $M_shtr_moon_mean_anom = 134.9633964 + 477198.8675055 * $T + 0.0087414 * pow($T, 2) + (pow($T,3) / 69699) - (pow($T,4) / 14712000);
-    $F_moon_arg_latitude = 93.2720950 + 483202.0175233 * $T - 0.0036539 * pow($T, 2)  - (pow($T,3) / 3526000) + (pow($T,4) / 863310000);
-    $L_shtr_mean_moon_longit_rad = deg2rad($L_shtr_mean_moon_longit);
-    $D_mean_elong_moon_rad = deg2rad($D_mean_elong_moon);
-    $M_mean_sun_anomaly_rad = deg2rad($M_mean_sun_anomaly);
-    $M_shtr_moon_mean_anom_rad = deg2rad($M_shtr_moon_mean_anom);
-    $F_moon_arg_latitude_rad = deg2rad($F_moon_arg_latitude);
-    $A1_rad = deg2rad(119.75 + 131.849 * $T);
-    $A2_rad = deg2rad(53.09 + 479264.290 * $T);
-    $A3_rad = deg2rad(313.45 + 481266.484 * $T);
-    $E = 1 - 0.002516 * $T - 0.0000074 * pow($T, 2);
+    $yra = (-$rho_cos_phi) * $parallax_moon_sin_pi * sin(deg2rad($hour_angle_deg));
+    $xra = cos(deg2rad($Dec_moon_deg)) - $rho_cos_phi * $parallax_moon_sin_pi * cos(deg2rad($hour_angle_deg));
+    $quadrant_xyra = 0;
+    if($yra > 0 and $xra > 0){
+        $quadrant_xyra = 1;
+    }
+    if($yra > 0 and $xra < 0){
+        $quadrant_xyra = 2;
+    }
+    if($yra < 0 and $xra < 0){
+        $quadrant_xyra = 3;
+    }
+    if($yra < 0 and $xra > 0){
+        $quadrant_xyra = 4;
+    }
+    $delta_RA = rad2deg(atan(($yra / $xra)));
+    $quadrant_delta_ra = 0;
 
-    ////// coefficients of sum array
-    $c1 = sin($M_shtr_moon_mean_anom_rad);
-    $c2 = sin(2* $D_mean_elong_moon_rad - $M_shtr_moon_mean_anom_rad);
-    $c3 = sin(2 * $D_mean_elong_moon_rad);
-    $c4 = sin(2 * $M_shtr_moon_mean_anom_rad);
-    $c5 = $E * sin($M_mean_sun_anomaly_rad);
-    $c6 = sin(2 * $F_moon_arg_latitude_rad);;
-    $c7 = sin(2 * $D_mean_elong_moon_rad - 2 * $M_shtr_moon_mean_anom_rad);
-    $c8 = $E * sin(2 * $D_mean_elong_moon_rad - $M_mean_sun_anomaly_rad - $M_shtr_moon_mean_anom_rad);
-    $c9 = sin(2  * $D_mean_elong_moon_rad + $M_shtr_moon_mean_anom_rad);
-    $c10 = $E * sin(2  * $D_mean_elong_moon_rad - $M_mean_sun_anomaly_rad);
-    $c11 = $E * sin($M_mean_sun_anomaly_rad - $M_shtr_moon_mean_anom_rad);
-    $c12 = sin($D_mean_elong_moon_rad);
-    $c13 = $E * sin($M_mean_sun_anomaly_rad + $M_shtr_moon_mean_anom_rad);
-    $c14 = sin(2 * $D_mean_elong_moon_rad - 2 * $F_moon_arg_latitude_rad);
-    $c15 = sin($M_shtr_moon_mean_anom_rad - 2 * $F_moon_arg_latitude_rad);
-    $c16 = sin($M_shtr_moon_mean_anom_rad  - 2 * $F_moon_arg_latitude_rad);
-    $c17 = sin(4 * $D_mean_elong_moon_rad - $M_shtr_moon_mean_anom_rad);
-    $c18 = sin(3 * $M_shtr_moon_mean_anom_rad);
-    $c19 = sin(4 * $D_mean_elong_moon_rad - 2 * $M_shtr_moon_mean_anom_rad);;
-    $c20 = $E * sin(2 * $D_mean_elong_moon_rad + $M_mean_sun_anomaly_rad - $M_shtr_moon_mean_anom_rad);
-    $c21 = $E * sin(2 * $D_mean_elong_moon_rad + $M_mean_sun_anomaly_rad);
-    $c22 = sin($D_mean_elong_moon_rad - $M_shtr_moon_mean_anom_rad);
-    $c23 = $E * sin($D_mean_elong_moon_rad + $M_mean_sun_anomaly_rad);
-    $c24 = $E * sin(2 * $D_mean_elong_moon_rad - $M_mean_sun_anomaly_rad + $M_shtr_moon_mean_anom_rad);
-    $c25 = sin(2 * $D_mean_elong_moon_rad - 2 * $M_shtr_moon_mean_anom_rad);
-    $c26 = sin(4 * $D_mean_elong_moon_rad);
-    $c27 = sin(2 * $D_mean_elong_moon_rad - 3 * $M_shtr_moon_mean_anom_rad);
-    $c28 = $E * sin($M_mean_sun_anomaly_rad - 2 * $M_shtr_moon_mean_anom_rad);
-    $c29 = sin(2 * $D_mean_elong_moon_rad - $M_shtr_moon_mean_anom_rad + 2 * $F_moon_arg_latitude_rad);
-    $c30 = $E * sin(2 * $D_mean_elong_moon_rad - $M_mean_sun_anomaly_rad - 2 * $M_shtr_moon_mean_anom_rad);
-    $c31 = sin($D_mean_elong_moon_rad + $M_shtr_moon_mean_anom_rad);
-    $c32 = pow($E,2) * sin(2 * $D_mean_elong_moon_rad - 2 * $M_mean_sun_anomaly_rad);
-    $c33 = $E * sin($M_mean_sun_anomaly_rad + 2 * $M_shtr_moon_mean_anom_rad);
-    $c34 = pow($E,2) * sin(2 * $M_mean_sun_anomaly_rad);
-    $c35 = pow($E,2) * sin(2 * $D_mean_elong_moon_rad - 2 * $M_mean_sun_anomaly_rad - $M_shtr_moon_mean_anom_rad);
-    $c36 = sin(2 * $D_mean_elong_moon_rad - $M_shtr_moon_mean_anom_rad - 2 * $F_moon_arg_latitude_rad);
-    $c37 = sin(2 * $D_mean_elong_moon_rad + 2 * $F_moon_arg_latitude_rad);
-    $c38 = $E * sin(4 * $D_mean_elong_moon_rad - $M_mean_sun_anomaly_rad - $M_shtr_moon_mean_anom_rad);
-    $c39 = sin(2 * $M_shtr_moon_mean_anom_rad + 2 * $F_moon_arg_latitude_rad);
-    $c40 = sin(3 * $D_mean_elong_moon_rad - $M_shtr_moon_mean_anom_rad);
-    $c41 = $E * sin(2 * $D_mean_elong_moon_rad + $M_mean_sun_anomaly_rad + $M_shtr_moon_mean_anom_rad);
-    $c42 = $E * sin(4 * $D_mean_elong_moon_rad - $M_mean_sun_anomaly_rad - 2 * $M_shtr_moon_mean_anom_rad);
-    $c43 = pow($E,2) * sin(2 * $M_mean_sun_anomaly_rad - $M_shtr_moon_mean_anom_rad);
-    $c44 = pow($E,2) * sin(2 * $D_mean_elong_moon_rad + 2 * $M_mean_sun_anomaly_rad - $M_shtr_moon_mean_anom_rad);
-    $c45 = $E * sin(2 * $D_mean_elong_moon_rad + $M_mean_sun_anomaly_rad - 2 * $M_shtr_moon_mean_anom_rad);
-    $c46 = $E * sin(2 * $D_mean_elong_moon_rad - $M_mean_sun_anomaly_rad - 2 * $F_moon_arg_latitude_rad);
-    $c47 = sin(4 * $D_mean_elong_moon_rad + $M_shtr_moon_mean_anom_rad);
-    $c48 = sin(4 * $M_shtr_moon_mean_anom_rad);
-    $c49 = $E * sin(4 * $D_mean_elong_moon_rad - $M_mean_sun_anomaly_rad);
-    $c50 = sin($D_mean_elong_moon_rad - 2 * $M_shtr_moon_mean_anom_rad);
-    $c51 = $E * sin(2 * $D_mean_elong_moon_rad + $M_mean_sun_anomaly_rad - 2 * $F_moon_arg_latitude_rad);
-    $c52 = sin(2 * $M_shtr_moon_mean_anom_rad - 2 * $F_moon_arg_latitude_rad);
-    $c53 = $E * sin($D_mean_elong_moon_rad + $M_mean_sun_anomaly_rad + $M_shtr_moon_mean_anom_rad);
-    $c54 = sin(3 * $D_mean_elong_moon_rad - 2 * $M_shtr_moon_mean_anom_rad);
-    $c55 = sin(4 * $D_mean_elong_moon_rad - 3 * $M_shtr_moon_mean_anom_rad);
-    $c56 = $E * sin(2 * $D_mean_elong_moon_rad - $M_mean_sun_anomaly_rad + 2 * $M_shtr_moon_mean_anom_rad);
-    $c57 = pow($E,2) * sin(2 * $M_mean_sun_anomaly_rad + $M_shtr_moon_mean_anom_rad);
-    $c58 = $E * sin($D_mean_elong_moon_rad + $M_mean_sun_anomaly_rad - $M_shtr_moon_mean_anom_rad);
-    $c59 = sin(2 * $D_mean_elong_moon_rad  - 3 * $M_shtr_moon_mean_anom_rad);
-    $c60 = sin(2 * $D_mean_elong_moon_rad - $M_shtr_moon_mean_anom_rad - 2 * $F_moon_arg_latitude_rad);
+    if($delta_RA > 0){
+        if($delta_RA > 0 and $delta_RA < 90 ){
+            $quadrant_delta_ra = 1;
+        }
+        if($delta_RA > 90 and $delta_RA < 180){
+            $quadrant_delta_ra = 2;
+        }
+        if(($delta_RA > 180 and $delta_RA < 270)){
+            $quadrant_delta_ra = 3;
+        }
+        if(($delta_RA > 270 and $delta_RA < 360)){
+            $quadrant_delta_ra = 4;
+        }
+    }
+    else{
+        if(abs($delta_RA) > 0 and abs($delta_RA) < 90 ){
+            $quadrant_delta_ra = 4;
+        }
+        if(abs($delta_RA) > 90 and abs($delta_RA) < 180){
+            $quadrant_delta_ra = 3;
+        }
+        if((abs($delta_RA) > 180 and abs($delta_RA) < 270)){
+            $quadrant_delta_ra = 2;
+        }
+        if((abs($delta_RA) > 270 and abs($delta_RA) < 360)){
+            $quadrant_delta_ra = 1;
+        }
+    }
 
+    if($delta_RA > 0 and ($quadrant_delta_ra != $quadrant_xyra)){
+        if($quadrant_delta_ra == 1 and $quadrant_xyra == 3){
+            $delta_RA = $delta_RA + 180;
+        }
+        if($quadrant_delta_ra == 2 and $quadrant_xyra == 4){
+            $delta_RA = $delta_RA + 180;
+        }
+        if($quadrant_delta_ra == 3 and $quadrant_xyra == 1){
+            $delta_RA = $delta_RA - 180;
+        }
+        if($quadrant_delta_ra == 4 and $quadrant_xyra == 2){
+            $delta_RA = $delta_RA - 180;
+        }
+    }
+    elseif($delta_RA < 0 and ($quadrant_delta_ra != $quadrant_xyra)){
+        if($quadrant_delta_ra == 1 and $quadrant_xyra == 3){
+            $delta_RA = $delta_RA- 180;
+        }
+        if($quadrant_delta_ra == 2 and $quadrant_xyra == 4){
+            $delta_RA = $delta_RA - 180;
+        }
+        if($quadrant_delta_ra == 3 and $quadrant_xyra == 1){
+            $delta_RA = $delta_RA + 180;
+        }
+        if($quadrant_delta_ra == 4 and $quadrant_xyra == 2){
+            $delta_RA = $delta_RA + 180;
+        }
+    }
+    elseif ($delta_RA < 0 and ($quadrant_delta_ra == $quadrant_xyra) and (($yra / $xra) > 0)){
+        $delta_RA = $delta_RA + 360;
+    }
+    elseif ($delta_RA > 0 and ($quadrant_delta_ra == $quadrant_xyra) and (($yra / $xra) < 0)){
+        $delta_RA = $delta_RA - 360;
+    }
+    //echo "delta_RA: ".$delta_RA."<br>";
+    $RA_hour_dec_cor = $RA_moon_hour_dec + ($delta_RA / 15);
+    //echo "RA_hour_dec_cor: ".hours_to_sep($RA_hour_dec_cor)."<br>";
+    ///Declination correction
+    $y_dec = (sin(deg2rad($Dec_moon_deg)) - $rho_sin_phi * $parallax_moon_sin_pi) * cos(deg2rad($delta_RA));
+    $x_dec = cos(deg2rad($Dec_moon_deg)) - $rho_cos_phi * $parallax_moon_sin_pi * cos(deg2rad($hour_angle_deg));
+    $quadrant_xydec = 0;
+    if($y_dec  > 0 and $x_dec > 0){
+        $quadrant_xydec = 1;
+    }
+    if($y_dec  > 0 and $x_dec < 0){
+        $quadrant_xydec = 2;
+    }
+    if($y_dec  < 0 and $x_dec < 0){
+        $quadrant_xydec = 3;
+    }
+    if($y_dec  < 0 and $x_dec > 0){
+        $quadrant_xydec = 4;
+    }
+    $DEC_corr = rad2deg(atan(($y_dec / $x_dec)));
+    $quadrant_dec = 0;
+    if($DEC_corr > 0){
+        if($DEC_corr > 0 and $DEC_corr < 90 ){
+            $quadrant_dec = 1;
+        }
+        if($DEC_corr > 90 and $DEC_corr < 180){
+            $quadrant_dec = 2;
+        }
+        if(($DEC_corr > 180 and $DEC_corr < 270)){
+            $quadrant_dec = 3;
+        }
+        if(($DEC_corr > 270 and $DEC_corr < 360)){
+            $quadrant_dec = 4;
+        }
+    }
+    else{
+        if(abs($DEC_corr) > 0 and abs($DEC_corr) < 90 ){
+            $quadrant_dec = 4;
+        }
+        if(abs($DEC_corr) > 90 and abs($DEC_corr) < 180){
+            $quadrant_dec = 3;
+        }
+        if((abs($DEC_corr) > 180 and abs($DEC_corr) < 270)){
+            $quadrant_dec = 2;
+        }
+        if((abs($DEC_corr) > 270 and abs($DEC_corr) < 360)){
+            $quadrant_dec = 1;
+        }
+    }
 
-    ////// sum of longitude's elements
-    $longitude_sum_arr = array();
-    $l1 = 6288774 * $c1;
-    array_push($longitude_sum_arr, $l1);
-    $l2 = 1274027 * $c2;
-    array_push($longitude_sum_arr, $l2);
-    $l3 = 658314 * $c3;
-    array_push($longitude_sum_arr, $l3);
-    $l4 = 213618 * $c4;
-    array_push($longitude_sum_arr, $l4);
-    $l5 = -185116 * $c5;
-    array_push($longitude_sum_arr, $l5);
-    $l6 = -114332 * $c6;
-    array_push($longitude_sum_arr, $l6);
-    $l7 = 58793 * $c7;
-    array_push($longitude_sum_arr, $l7);
-    $l8 = 57066 * $c8;
-    array_push($longitude_sum_arr, $l8);
-    $l9 = 53332 * $c9;
-    array_push($longitude_sum_arr, $l9);
-    $l10 = 45758 * $c10;
-    array_push($longitude_sum_arr, $l10);
-    $l11 = -40923 * $c11;
-    array_push($longitude_sum_arr, $l11);
-    $l12 = -34720 * $c12;
-    array_push($longitude_sum_arr, $l12);
-    $l13 = -30383 * $E * $c13;
-    array_push($longitude_sum_arr, $l13);
-    $l14 = 15327 * $c14;
-    array_push($longitude_sum_arr, $l14);
-    $l15 = -12528 * $c15;
-    array_push($longitude_sum_arr, $l15);
-    $l16 = 10980 * $c16;
-    array_push($longitude_sum_arr, $l16);
-    $l17 = 10675 * $c17;
-    array_push($longitude_sum_arr, $l17);
-    $l18 = 10034 * $c18;
-    array_push($longitude_sum_arr, $l18);
-    $l19 = 8548 * $c19;
-    array_push($longitude_sum_arr, $l19);
-    $l20 = -7888 * $c20;
-    array_push($longitude_sum_arr, $l20);
-    $l21 = -6766 * $c21;
-    array_push($longitude_sum_arr, $l21);
-    $l22 = -5163 * $c22;
-    array_push($longitude_sum_arr, $l22);
-    $l23 = 4987 * $c23;
-    array_push($longitude_sum_arr, $l23);
-    $l24 = 4036 * $c24;
-    array_push($longitude_sum_arr, $l24);
-    $l25 = 3994 * $c25;
-    array_push($longitude_sum_arr, $l25);
-    $l26 = 3861 * $c26;
-    array_push($longitude_sum_arr, $l26);
-    $l27 = 3665 * $c27;
-    array_push($longitude_sum_arr, $l27);
-    $l28 = -2689 * $c28;
-    array_push($longitude_sum_arr, $l28);
-    $l29 = -2602 * $c29;
-    array_push($longitude_sum_arr, $l29);
-    $l30 = 2390 * $c30;
-    array_push($longitude_sum_arr, $l30);
-    $l31 = -2348 * $c31;
-    array_push($longitude_sum_arr, $l31);
-    $l32 = 2236 * $c32;
-    array_push($longitude_sum_arr, $l32);
-    $l33 = -2120 * $c33;
-    array_push($longitude_sum_arr, $l33);
-    $l34 = -2069 * $c34;
-    array_push($longitude_sum_arr, $l34);
-    $l35 = 2048 * $c35;
-    array_push($longitude_sum_arr, $l35);
-    $l36 = -1773 * $c36;
-    array_push($longitude_sum_arr, $l36);
-    $l37 = -1595 * $c37;
-    array_push($longitude_sum_arr, $l37);
-    $l38 = 1215 * $c38;
-    array_push($longitude_sum_arr, $l38);
-    $l39 = -1110 * $c39;
-    array_push($longitude_sum_arr, $l39);
-    $l40 = -892 * $c40;
-    array_push($longitude_sum_arr, $l40);
-    $l41 = -810 * $c41;
-    array_push($longitude_sum_arr, $l41);
-    $l42 = 759 * $c42;
-    array_push($longitude_sum_arr, $l42);
-    $l43 = -713 * $c43;
-    array_push($longitude_sum_arr, $l43);
-    $l44 = -700 * $c44;
-    array_push($longitude_sum_arr, $l44);
-    $l45 = 691 * $c45;
-    array_push($longitude_sum_arr, $l45);
-    $l46 = 596 * $c46;
-    array_push($longitude_sum_arr, $l46);
-    $l47 = 549 * $c47;
-    array_push($longitude_sum_arr, $l47);
-    $l48 = 537 * $c48;
-    array_push($longitude_sum_arr, $l48);
-    $l49 = 520 * $c49;
-    array_push($longitude_sum_arr, $l49);
-    $l50 = -487 * $c50;
-    array_push($longitude_sum_arr, $l50);
-    $l51 = - 399 * $c51;
-    array_push($longitude_sum_arr, $l51);
-    $l52 = -381 * $c52;
-    array_push($longitude_sum_arr, $l52);
-    $l53 = 351 * $c53;
-    array_push($longitude_sum_arr, $l53);
-    $l54 = -340 * $c54;
-    array_push($longitude_sum_arr, $l54);
-    $l55 = 330 * $c55;
-    array_push($longitude_sum_arr, $l55);
-    $l56 = 330 * $c56;
-    array_push($longitude_sum_arr, $l56);
-    $l57 = -323 * $c57;
-    array_push($longitude_sum_arr, $l57);
-    $l58 = 299 * $c58;
-    array_push($longitude_sum_arr, $l58);
-    $l59 = 294 * $c59;
-    array_push($longitude_sum_arr, $l59);
-    $longitude_sum_deg = array_sum($longitude_sum_arr);
-    $longitude_sum_add_deg = $longitude_sum_deg + 3958 * sin($A1_rad) + 1962 * sin($L_shtr_mean_moon_longit_rad - $F_moon_arg_latitude) + 318 * sin($A2_rad);
+    if($DEC_corr > 0 and ($quadrant_dec != $quadrant_xydec)){
+        if($quadrant_dec == 1 and $quadrant_xydec == 3){
+            $DEC_corr = $DEC_corr + 180;
+        }
+        if($quadrant_dec == 2 and $quadrant_xydec == 4){
+            $DEC_corr = $DEC_corr + 180;
+        }
+        if($quadrant_dec == 3 and $quadrant_xydec == 1){
+            $DEC_corr = $DEC_corr - 180;
+        }
+        if($quadrant_dec == 4 and $quadrant_xydec == 2){
+            $DEC_corr = $DEC_corr - 180;
+        }
+    }
+    elseif($DEC_corr < 0 and ($quadrant_dec != $quadrant_xydec)){
+        if($quadrant_dec == 1 and $quadrant_xydec == 3){
+            $DEC_corr = $DEC_corr - 180;
+        }
+        if($quadrant_dec == 2 and $quadrant_xydec == 4){
+            $DEC_corr = $DEC_corr - 180;
+        }
+        if($quadrant_dec == 3 and $quadrant_xydec == 1){
+            $DEC_corr = $DEC_corr + 180;
+        }
+        if($quadrant_dec == 4 and $quadrant_xydec == 2){
+            $DEC_corr = $DEC_corr + 180;
+        }
+    }
+    elseif ($DEC_corr < 0 and ($quadrant_dec == $quadrant_xydec) and (($y_dec / $x_dec) > 0)){
+        $DEC_corr = $DEC_corr + 360;
+    }
+    elseif ($DEC_corr > 0 and ($quadrant_dec == $quadrant_xydec) and (($y_dec / $x_dec) < 0)){
+        $DEC_corr = $DEC_corr - 360;
+    }
+    //echo "DEC_corr: ".hours_to_sep($DEC_corr)."<br>";
+    /// angular size of the moon
+    $angular_size_moon_a_deg = 0.5181;
+    $semi_major_axis_km = 384399;
+    $moon_dist = $dist_km/ $semi_major_axis_km;
+    $angular_size_moon_indate_deg = $angular_size_moon_a_deg / $moon_dist;
+
+    $Moon_parameters = array($RA_hour_dec_cor, $DEC_corr, $RA_moon_hour_dec, $Dec_moon_deg, $longitude_moon_deg, $latitude_moon_ecl_deg, $parallax_moon_sin_pi, $dist_km, $M_shtr_moon_mean_anom, $angular_size_moon_indate_deg);
+
+    return $Moon_parameters;
+
 }
 
+//$a = Moon_position_new(2022,3,7);
+
+function distance_array($E, $D_mean_elong_moon_rad, $M_mean_sun_anomaly_rad, $M_shtr_moon_mean_anom_rad, $F_moon_arg_latitude_rad){
+    $c1 = cos($M_shtr_moon_mean_anom_rad);
+    $c2 = cos(2* $D_mean_elong_moon_rad - $M_shtr_moon_mean_anom_rad);
+    $c3 = cos(2 * $D_mean_elong_moon_rad);
+    $c4 = cos(2 * $M_shtr_moon_mean_anom_rad);
+    $c5 = $E * cos($M_mean_sun_anomaly_rad);
+    $c6 = cos(2 * $F_moon_arg_latitude_rad);
+    $c7 = cos(2 * $D_mean_elong_moon_rad - 2 * $M_shtr_moon_mean_anom_rad);
+    $c8 = $E * cos(2 * $D_mean_elong_moon_rad - $M_mean_sun_anomaly_rad - $M_shtr_moon_mean_anom_rad);
+    $c9 = cos(2  * $D_mean_elong_moon_rad + $M_shtr_moon_mean_anom_rad);
+    $c10 = $E * cos(2  * $D_mean_elong_moon_rad - $M_mean_sun_anomaly_rad);
+    $c11 = $E * cos($M_mean_sun_anomaly_rad - $M_shtr_moon_mean_anom_rad);
+    $c12 = cos($D_mean_elong_moon_rad);
+    $c13 = $E * cos($M_mean_sun_anomaly_rad + $M_shtr_moon_mean_anom_rad);
+    $c14 = cos(2 * $D_mean_elong_moon_rad - 2 * $F_moon_arg_latitude_rad);
+    //$c15 = cos($M_shtr_moon_mean_anom_rad + 2 * $F_moon_arg_latitude_rad);
+    $c16 = cos($M_shtr_moon_mean_anom_rad  - 2 * $F_moon_arg_latitude_rad);
+    $c17 = cos(4 * $D_mean_elong_moon_rad - $M_shtr_moon_mean_anom_rad);
+    $c18 = cos(3 * $M_shtr_moon_mean_anom_rad);
+    $c19 = cos(4 * $D_mean_elong_moon_rad - 2 * $M_shtr_moon_mean_anom_rad);;
+    $c20 = $E * cos(2 * $D_mean_elong_moon_rad + $M_mean_sun_anomaly_rad - $M_shtr_moon_mean_anom_rad);
+    $c21 = $E * cos(2 * $D_mean_elong_moon_rad + $M_mean_sun_anomaly_rad);
+    $c22 = cos($D_mean_elong_moon_rad - $M_shtr_moon_mean_anom_rad);
+    $c23 = $E * cos($D_mean_elong_moon_rad + $M_mean_sun_anomaly_rad);
+    $c24 = $E * cos(2 * $D_mean_elong_moon_rad - $M_mean_sun_anomaly_rad + $M_shtr_moon_mean_anom_rad);
+    $c25 = cos(2 * $D_mean_elong_moon_rad + 2 * $M_shtr_moon_mean_anom_rad);
+    $c26 = cos(4 * $D_mean_elong_moon_rad);
+    $c27 = cos(2 * $D_mean_elong_moon_rad - 3 * $M_shtr_moon_mean_anom_rad);
+    $c28 = $E * cos($M_mean_sun_anomaly_rad - 2 * $M_shtr_moon_mean_anom_rad);
+    //$c29 = cos(2 * $D_mean_elong_moon_rad - $M_shtr_moon_mean_anom_rad + 2 * $F_moon_arg_latitude_rad);
+    $c30 = $E * cos(2 * $D_mean_elong_moon_rad - $M_mean_sun_anomaly_rad - 2 * $M_shtr_moon_mean_anom_rad);
+    $c31 = cos($D_mean_elong_moon_rad + $M_shtr_moon_mean_anom_rad);
+    $c32 = pow($E,2) * cos(2 * $D_mean_elong_moon_rad - 2 * $M_mean_sun_anomaly_rad);
+    $c33 = $E * cos($M_mean_sun_anomaly_rad + 2 * $M_shtr_moon_mean_anom_rad);
+    //$c34 = pow($E,2) * cos(2 * $M_mean_sun_anomaly_rad);
+    $c35 = pow($E,2) * cos(2 * $D_mean_elong_moon_rad - 2 * $M_mean_sun_anomaly_rad - $M_shtr_moon_mean_anom_rad);
+    $c36 = cos(2 * $D_mean_elong_moon_rad + $M_shtr_moon_mean_anom_rad - 2 * $F_moon_arg_latitude_rad);
+    //$c37 = cos(2 * $D_mean_elong_moon_rad + 2 * $F_moon_arg_latitude_rad);
+    $c38 = $E * cos(4 * $D_mean_elong_moon_rad - $M_mean_sun_anomaly_rad - $M_shtr_moon_mean_anom_rad);
+    $c39 = cos(2 * $M_shtr_moon_mean_anom_rad + 2 * $F_moon_arg_latitude_rad);
+    $c40 = cos(3 * $D_mean_elong_moon_rad - $M_shtr_moon_mean_anom_rad);
+    $c41 = $E * cos(2 * $D_mean_elong_moon_rad + $M_mean_sun_anomaly_rad + $M_shtr_moon_mean_anom_rad);
+    $c42 = $E * cos(4 * $D_mean_elong_moon_rad - $M_mean_sun_anomaly_rad - 2 * $M_shtr_moon_mean_anom_rad);
+    $c43 = pow($E,2) * cos(2 * $M_mean_sun_anomaly_rad - $M_shtr_moon_mean_anom_rad);
+    $c44 = pow($E,2) * cos(2 * $D_mean_elong_moon_rad + 2 * $M_mean_sun_anomaly_rad - $M_shtr_moon_mean_anom_rad);
+    //$c45 = $E * cos(2 * $D_mean_elong_moon_rad + $M_mean_sun_anomaly_rad - 2 * $M_shtr_moon_mean_anom_rad);
+    //$c46 = $E * cos(2 * $D_mean_elong_moon_rad - $M_mean_sun_anomaly_rad - 2 * $F_moon_arg_latitude_rad);
+    $c47 = cos(4 * $D_mean_elong_moon_rad + $M_shtr_moon_mean_anom_rad);
+    $c48 = cos(4 * $M_shtr_moon_mean_anom_rad);
+    $c49 = $E * cos(4 * $D_mean_elong_moon_rad - $M_mean_sun_anomaly_rad);
+    $c50 = cos($D_mean_elong_moon_rad - 2 * $M_shtr_moon_mean_anom_rad);
+    //$c51 = $E * cos(2 * $D_mean_elong_moon_rad + $M_mean_sun_anomaly_rad - 2 * $F_moon_arg_latitude_rad);
+    $c52 = cos(2 * $M_shtr_moon_mean_anom_rad - 2 * $F_moon_arg_latitude_rad);
+    //$c53 = $E * cos($D_mean_elong_moon_rad + $M_mean_sun_anomaly_rad + $M_shtr_moon_mean_anom_rad);
+    //$c54 = cos(3 * $D_mean_elong_moon_rad - 2 * $M_shtr_moon_mean_anom_rad);
+    //$c55 = cos(4 * $D_mean_elong_moon_rad - 3 * $M_shtr_moon_mean_anom_rad);
+    //$c56 = $E * cos(2 * $D_mean_elong_moon_rad - $M_mean_sun_anomaly_rad + 2 * $M_shtr_moon_mean_anom_rad);
+    $c57 = pow($E,2) * cos(2 * $M_mean_sun_anomaly_rad + $M_shtr_moon_mean_anom_rad);
+    //$c58 = $E * cos($D_mean_elong_moon_rad + $M_mean_sun_anomaly_rad - $M_shtr_moon_mean_anom_rad);
+    //$c59 = cos(2 * $D_mean_elong_moon_rad  + 3 * $M_shtr_moon_mean_anom_rad);
+    $c60 = cos(2 * $D_mean_elong_moon_rad - $M_shtr_moon_mean_anom_rad - 2 * $F_moon_arg_latitude_rad);
+
+    //// Distance
+    $dist_arr = array();
+    $d1 = -20905355 * $c1;
+    array_push($dist_arr, $d1);
+    $d2 = -3699111 * $c2;
+    array_push($dist_arr, $d2);
+    $d3 = -2955968 * $c3;
+    array_push($dist_arr, $d3);
+    $d4 = -569925 * $c4;
+    array_push($dist_arr, $d4);
+    $d5 = 48888 * $c5;
+    array_push($dist_arr, $d5);
+    $d6 = -3149 * $c6;
+    array_push($dist_arr, $d6);
+    $d7 = 246158 * $c7;
+    array_push($dist_arr, $d7);
+    $d8 = -152138 * $c8;
+    array_push($dist_arr, $d8);
+    $d9 = -170733 * $c9;
+    array_push($dist_arr, $d9);
+    $d10 = -204586 * $c10;
+    array_push($dist_arr, $d10);
+    $d11 = -129620 * $c11;
+    array_push($dist_arr, $d11);
+    $d12 = 108743 * $c12;
+    array_push($dist_arr, $d12);
+    $d13 = 104755 * $c13;
+    array_push($dist_arr, $d13);
+    $d14 = 10321 * $c14;
+    array_push($dist_arr, $d14);
+    $d16 = 79661 * $c16;
+    array_push($dist_arr, $d16);
+    $d17 = -34782 * $c17;
+    array_push($dist_arr, $d17);
+    $d18 = -23210 * $c18;
+    array_push($dist_arr, $d18);
+    $d19 = -21636 * $c19;
+    array_push($dist_arr, $d19);
+    $d20 = 24208 * $c20;
+    array_push($dist_arr, $d20);
+    $d21 = 30824 * $c21;
+    array_push($dist_arr, $d21);
+    $d22 = -8379 * $c22;
+    array_push($dist_arr, $d22);
+    $d23 = -16675 * $c23;
+    array_push($dist_arr, $d23);
+    $d24 = -12831 * $c24;
+    array_push($dist_arr, $d24);
+    $d25 = -10455 * $c25;
+    array_push($dist_arr, $d25);
+    $d26 = -11650 * $c26;
+    array_push($dist_arr, $d26);
+    $d27 = 14403 * $c27;
+    array_push($dist_arr, $d27);
+    $d28 = -7003 * $c28;
+    array_push($dist_arr, $d28);
+    $d30 = 10056 * $c30;
+    array_push($dist_arr, $d30);
+    $d31 = 6322 * $c31;
+    array_push($dist_arr, $d31);
+    $d32 = -9884 * $c32;
+    array_push($dist_arr, $d32);
+    $d33 = 5751 * $c33;
+    array_push($dist_arr, $d33);
+    $d35 = -4950  * $c35;
+    array_push($dist_arr, $d35);
+    $d36 = 4130 * $c36;
+    array_push($dist_arr, $d36);
+    $d38 = -3958 * $c38;
+    array_push($dist_arr, $d38);
+    $d40 = 3258 * $c40;
+    array_push($dist_arr, $d40);
+    $d41 = 2616 * $c41;
+    array_push($dist_arr, $d41);
+    $d42 = -1897 * $c42;
+    array_push($dist_arr, $d42);
+    $d43 = -2117 * $c43;
+    array_push($dist_arr, $d43);
+    $d44 = 2354 * $c44;
+    array_push($dist_arr, $d44);
+    $d47 = -1423 * $c47;
+    array_push($dist_arr, $d47);
+    $d48 = -1117 * $c48;
+    array_push($dist_arr, $d48);
+    $d49 = -1571 * $c49;
+    array_push($dist_arr, $d49);
+    $d50 = -1739 * $c50;
+    array_push($dist_arr, $d50);
+    $d52 = -4421 * $c52;
+    array_push($dist_arr, $d52);
+    $d57 = 1165 * $c57;
+    array_push($dist_arr, $d57);
+    $d60 = 8752 * $c60;
+    array_push($dist_arr, $d60);
+    $dist_add = array_sum($dist_arr);
+    return $dist_add;
+}
 
 //// Moon phases
 function Moon_phase($year_ph, $month_ph, $day_ph, $time_ut = "00:00:00"):float{
-    $temp_array1 = Moon_position($year_ph, $month_ph, $day_ph, $time_ut);
-    $Moon_age_deg = $temp_array1[3] - $temp_array1[2];
-    $Phase_moon = round(((1 - cos(deg2rad($Moon_age_deg))) / 2), 2);
-    return $Phase_moon;
+    $temp_array1 = Moon_position_new($year_ph, $month_ph, $day_ph, $time_ut);
+    $temp_array2 = Solar_position($year_ph, $month_ph, $day_ph, $time_ut = "00:00:00");
+    $Solar_RA_deg = $temp_array2[2] * 15;
+    $Solar_DEC = $temp_array2[3];
+    $Moon_RA_deg = $temp_array1[2] * 15;
+    $Moon_DEC = $temp_array1[3];
+    $Solar_dist_km = $temp_array2[4] * 149597870.7;
+    $Moon_dist_km = $temp_array1[7];
+    $cos_psi = sin(deg2rad($Solar_DEC)) * sin(deg2rad($Moon_DEC)) + cos(deg2rad($Solar_DEC)) * cos(deg2rad($Moon_DEC)) * cos(deg2rad($Solar_RA_deg - $Moon_RA_deg));
+    $psi_rad = acos($cos_psi);
+    $y = $Solar_dist_km * sin($psi_rad);
+    $x = $Moon_dist_km - $Solar_dist_km * $cos_psi;
+    $quadrant_xy = 0;
+    if($y  > 0 and $x > 0){
+        $quadrant_xy= 1;
+    }
+    if($y  > 0 and $x < 0){
+        $quadrant_xy = 2;
+    }
+    if($y < 0 and $x < 0){
+        $quadrant_xy = 3;
+    }
+    if($y  < 0 and $x > 0){
+        $quadrant_xy = 4;
+    }
+
+    $phase_angle_deg = rad2deg(atan($y / $x));
+    $quadrant_ph_ang = 0;
+    if($phase_angle_deg > 0){
+        if($phase_angle_deg > 0 and $phase_angle_deg < 90 ){
+            $quadrant_ph_ang = 1;
+        }
+        if($phase_angle_deg > 90 and $phase_angle_deg < 180){
+            $quadrant_ph_ang = 2;
+        }
+        if(($phase_angle_deg > 180 and $phase_angle_deg < 270)){
+            $quadrant_ph_ang = 3;
+        }
+        if(($phase_angle_deg > 270 and $phase_angle_deg < 360)){
+            $quadrant_ph_ang = 4;
+        }
+    }
+    else{
+        if(abs($phase_angle_deg) > 0 and abs($phase_angle_deg) < 90 ){
+            $quadrant_ph_ang = 4;
+        }
+        if(abs($phase_angle_deg) > 90 and abs($phase_angle_deg) < 180){
+            $quadrant_ph_ang = 3;
+        }
+        if((abs($phase_angle_deg) > 180 and abs($phase_angle_deg) < 270)){
+            $quadrant_ph_ang = 2;
+        }
+        if((abs($phase_angle_deg) > 270 and abs($phase_angle_deg) < 360)){
+            $quadrant_ph_ang = 1;
+        }
+    }
+
+    if($phase_angle_deg > 0 and ($quadrant_ph_ang != $quadrant_xy)){
+        if($quadrant_ph_ang == 1 and $quadrant_xy == 3){
+            $phase_angle_deg = $phase_angle_deg + 180;
+        }
+        if($quadrant_ph_ang == 2 and $quadrant_xy == 4){
+            $phase_angle_deg = $phase_angle_deg + 180;
+        }
+        if($quadrant_ph_ang == 3 and $quadrant_xy == 1){
+            $phase_angle_deg = $phase_angle_deg - 180;
+        }
+        if($quadrant_ph_ang == 4 and $quadrant_xy == 2){
+            $phase_angle_deg = $phase_angle_deg - 180;
+        }
+    }
+    elseif($phase_angle_deg < 0 and ($quadrant_ph_ang != $quadrant_xy)){
+        if($quadrant_ph_ang == 1 and $quadrant_xy == 3){
+            $phase_angle_deg = $phase_angle_deg - 180;
+        }
+        if($quadrant_ph_ang == 2 and $quadrant_xy == 4){
+            $phase_angle_deg = $phase_angle_deg - 180;
+        }
+        if($quadrant_ph_ang == 3 and $quadrant_xy == 1){
+            $phase_angle_deg = $phase_angle_deg + 180;
+        }
+        if($quadrant_ph_ang == 4 and $quadrant_xy == 2){
+            $phase_angle_deg = $phase_angle_deg + 180;
+        }
+    }
+    elseif ($phase_angle_deg < 0 and ($quadrant_ph_ang == $quadrant_xy) and (($y / $x) > 0)){
+        $phase_angle_deg = $phase_angle_deg + 360;
+    }
+    elseif ($phase_angle_deg > 0 and ($quadrant_ph_ang == $quadrant_xy) and (($y / $x) < 0)){
+        $phase_angle_deg = $phase_angle_deg - 360;
+    }
+    $illumin_frac_moon = round(((1 + cos(deg2rad($phase_angle_deg))) / 2), 2);
+    //$Phase_moon = round(((1 - cos(deg2rad($Moon_age_deg))) / 2), 2);
+    return $illumin_frac_moon;
 }
 
 //$a = Moon_phase(2003,9,1);
 //echo "Phase of Moon: ".$a."<br>";
 
-// Distance to the Moon in semi-major axis units, angular size in degrees and horizontal parallax in degrees
-function Moon_parameters($year_dist, $month_dist, $day_dist, $ut_time = "00:00:00"):array{
-    $temp_array = Moon_position($year_dist, $month_dist, $day_dist, $ut_time);
-    $eccentricity_moon_orb = 0.0549006;
-    $angular_size_moon_a_deg = 0.5181;
-    $parallax_moon_a_deg = 0.9507;
-    $moon_dist = (1 - pow($eccentricity_moon_orb, 2))/(1 + $eccentricity_moon_orb * cos(deg2rad($temp_array[4]) + deg2rad($temp_array[5])));
-    $angular_size_moon_indate_deg = $angular_size_moon_a_deg / $moon_dist;
-    $parallax_moon_indate_deg = $parallax_moon_a_deg / $moon_dist;
-    $moon_param_array = array($moon_dist, $angular_size_moon_indate_deg, $parallax_moon_indate_deg);
-    return $moon_param_array;
-}
-
-//$temp = Moon_parameters(1979, 9, 6);
-//echo "moon_dist: ".$temp[0]."<br>";
-//echo "angular_size_moon_indate_deg: ".$temp[1]."<br>";
-//echo "parallax_moon_indate_deg: ".$temp[2]."<br>";
-
-function geocentric_parallax_moon ($RA_dec, $DEC_dec, $year_p, $month_p, $day_p, $gmt_time = "00:00:00"):array{
-    global $altitude_place;
-    global $latitude_place_decimal_deg;
-    $moon_parameters = Moon_parameters($year_p, $month_p, $day_p, $gmt_time);
-    $horiz_parallax_moon_deg = $moon_parameters[2];
-    $r_dist = 1 / sin(deg2rad($horiz_parallax_moon_deg));
-    $loc_sid_time = LST($year_p, $month_p, $day_p, $gmt_time);
-    $hour_angle_hour = $loc_sid_time - $RA_dec;
-    $hour_angle_deg = $hour_angle_hour * 15;
-    $u_rad = atan(0.996647 * tan(deg2rad($latitude_place_decimal_deg)));
-    $related_altitude = $altitude_place / 6378140;
-    $ro_sin_fi_cor = 0.996647 * sin($u_rad) + $related_altitude * sin(deg2rad($latitude_place_decimal_deg));
-    $ro_cos_fi_cor = cos($u_rad) + $related_altitude * cos(deg2rad($latitude_place_decimal_deg));
-    $y1 = $ro_cos_fi_cor * sin(deg2rad($hour_angle_deg));
-    $x1 = $r_dist * cos(deg2rad($DEC_dec)) - $ro_cos_fi_cor * cos(deg2rad($hour_angle_deg));
-    $correction_RA_deg = rad2deg(atan($y1 / $x1));
-    $hour_angl_corr_deg = $hour_angle_deg + $correction_RA_deg;
-    $RA_corr_hour = $RA_dec - ($correction_RA_deg / 15);
-    if($RA_corr_hour > 24){
-        $RA_corr_hour = $RA_corr_hour - 24;
-    }
-    elseif ($RA_corr_hour < 0){
-        $RA_corr_hour = $RA_corr_hour + 24;
-    }
-    $y2 = cos(deg2rad($hour_angl_corr_deg)) * ($r_dist * sin(deg2rad($DEC_dec)) - $ro_sin_fi_cor);
-    $x2 = $r_dist * cos(deg2rad($DEC_dec)) * cos(deg2rad($hour_angle_deg)) - $ro_cos_fi_cor;
-    $DEC_corr_deg = rad2deg(atan($y2 / $x2));
-    $corrected_ra_dec_moon = array($RA_corr_hour, $DEC_corr_deg);
-    return $corrected_ra_dec_moon;
-}
-//$temp_11 = Moon_position(2022,3,30,"05:00:00");
-//echo "lon: ".$temp_11[0]."<br>";
-//echo "lat: ".$temp_11[1]."<br>";
-//echo "RA: ".$temp_11[6]."<br>";
-//echo "DEC: ".$temp_11[7]."<br>";
-//$temp_21 = geocentric_parallax_moon($temp_11[6], $temp_11[7], 2022,1,14);
-//echo "RA_corr: ".$temp_21[0]."<br>";
-//echo "DEC_corr: ".$temp_21[1]."<br>";
 
 
 function set_rise_moon_new($year_m, $month_m, $day_m){
     global $latitude_place_decimal_deg;
 
     $time_start_set = "00:00:00";
-    for($i = 1; $i < 5; $i++){
-        $temp_array1 = Moon_position($year_m, $month_m, $day_m, $time_start_set);
-        $ra_itter_hr_set = $temp_array1[6];
-        //echo "ra_itter_hr_set: ".$i." - ".$ra_itter_hr_set."<br>";
-        $dec_itter_deg_set = $temp_array1[7];
-        //echo "dec_itter_deg_set: ".$i." - ".$dec_itter_deg_set."<br>";
-        $temp_array2 = geocentric_parallax_moon($ra_itter_hr_set, $dec_itter_deg_set, $year_m, $month_m, $day_m, $time_start_set);
+    for($i = 1; $i < 6; $i++){
+        $temp_array2 = Moon_position_new($year_m, $month_m, $day_m, $time_start_set);
         $ra_corr_set = $temp_array2[0];
         //echo "ra_corr_set: ".$i." - ".$ra_corr_set."<br>";
         $dec_corr_set = $temp_array2[1];
@@ -1622,101 +2020,124 @@ function set_rise_moon_new($year_m, $month_m, $day_m){
         $local_sid_time_set_dec = $hour_ang_set_hour + $ra_corr_set;
         //echo "local_sid_time_set_dec: ".$i." - ".$local_sid_time_set_dec."<br>";
         $day_set = $day_m;
-        if($local_sid_time_set_dec > 24){
-            $local_sid_time_set_dec = $local_sid_time_set_dec - 24;
-            $day_set = $day_set + 1;
-        }
-        elseif ($local_sid_time_set_dec < 0){
-            $local_sid_time_set_dec = $local_sid_time_set_dec + 24;
-            $day_set = $day_set - 1;
-        }
+//        if($local_sid_time_set_dec > 24){
+//            $local_sid_time_set_dec = $local_sid_time_set_dec - 24;
+//            $day_set = $day_set + 1;
+//        }
+//        elseif ($local_sid_time_set_dec < 0){
+//            $local_sid_time_set_dec = $local_sid_time_set_dec + 24;
+//            $day_set = $day_set - 1;
+//        }
         $local_sid_time_set_sep = hours_to_sep($local_sid_time_set_dec);
         //echo "local_sid_time_set_sep: ".$i." - ".$local_sid_time_set_sep."<br>";
-        $local_civil_time_set = LT_ST_time($year_m, $month_m, $day_set, $local_sid_time_set_sep);
+        $local_civil_time_set = LST_to_loc_CT($year_m, $month_m, $day_set, $local_sid_time_set_sep);
         $time_start_set = hours_to_sep($local_civil_time_set);
         //echo "time_start_set: ".$i." - ".$time_start_set."<br>";
     }
 
     $time_start_rise = "00:00:00";
-    for($g = 1; $g < 5; $g++){
-        $temp_array11 = Moon_position($year_m, $month_m, $day_m, $time_start_rise);
-        $ra_itter_hr_rise = $temp_array11[6];
-        $dec_itter_deg_rise = $temp_array11[7];
-        $temp_array3 = geocentric_parallax_moon($ra_itter_hr_rise, $dec_itter_deg_rise, $year_m, $month_m, $day_m, $time_start_rise);
+    $day_rise = $day_m;
+    for($g = 1; $g < 6; $g++){
+//        $temp_array11 = Moon_position($year_m, $month_m, $day_m, $time_start_rise);
+//        $ra_itter_hr_rise = $temp_array11[6];
+//        $dec_itter_deg_rise = $temp_array11[7];
+        $temp_array3 = Moon_position_new($year_m, $month_m, $day_rise, $time_start_rise);
         $ra_corr_rise = $temp_array3[0];
         $dec_corr_rise = $temp_array3[1];
-        $hour_ang_rise_deg = 2*M_PI - rad2deg(acos(-tan(deg2rad($latitude_place_decimal_deg)) * tan(deg2rad($dec_corr_rise))));
+        $hour_ang_rise_deg = - rad2deg(acos(-tan(deg2rad($latitude_place_decimal_deg)) * tan(deg2rad($dec_corr_rise))));
         $hour_ang_rise_hour = $hour_ang_rise_deg / 15;
         $local_sid_time_rise_dec = $hour_ang_rise_hour + $ra_corr_rise;
-        $day_rise = $day_m;
-        if($local_sid_time_rise_dec > 24){
-            $local_sid_time_rise_dec = $local_sid_time_rise_dec - 24;
-            $day_rise = $day_rise + 1;
-        }
-        elseif ($local_sid_time_rise_dec < 0){
-            $local_sid_time_rise_dec = $local_sid_time_rise_dec + 24;
-            $day_rise = $day_rise - 1;
-        }
+
+//        if($local_sid_time_rise_dec > 24){
+//            $local_sid_time_rise_dec = $local_sid_time_rise_dec - 24;
+//            $day_rise = $day_rise + 1;
+//        }
+//        elseif ($local_sid_time_rise_dec < 0){
+//            $local_sid_time_rise_dec = $local_sid_time_rise_dec + 24;
+//            $day_rise = $day_rise - 1;
+//        }
         $local_sid_time_rise_sep = hours_to_sep($local_sid_time_rise_dec);
-        $local_civil_time_rise = LT_ST_time($year_m, $month_m, $day_rise, $local_sid_time_rise_sep);
+        //echo "local_sid_time_rise_sep: ".$local_sid_time_rise_sep."<br>";
+        $local_civil_time_rise = LST_to_loc_CT($year_m, $month_m, $day_rise, $local_sid_time_rise_sep);
         $time_start_rise = hours_to_sep($local_civil_time_rise);
+        //echo "time_start_rise: ".$time_start_rise."<br>";
     }
 
     //// refraction and disk size corrections
     $refraction_horiz_deg = 0.567;
-    $moon_param_temp_set = Moon_parameters($year_m, $month_m, $day_m, $time_start_set);
-    $moon_param_temp_rise = Moon_parameters($year_m, $month_m, $day_m, $time_start_rise);
-    $angular_size_moon_set_deg = $moon_param_temp_set[1];
-    $angular_size_moon_rise_deg = $moon_param_temp_rise[1];
+    $moon_param_temp_set = Moon_position_new($year_m, $month_m, $day_m, $time_start_set);
+    $moon_param_temp_rise = Moon_position_new($year_m, $month_m, $day_m, $time_start_rise);
+    $angular_size_moon_set_deg = $moon_param_temp_set[9];
+    $angular_size_moon_rise_deg = $moon_param_temp_rise[9];
     $x_ref_set = $refraction_horiz_deg + ($angular_size_moon_set_deg / 2);
     $x_ref_rise = $refraction_horiz_deg + ($angular_size_moon_rise_deg / 2);
-    $psi_ref_set = acos(sin(deg2rad($latitude_place_decimal_deg)) / cos(deg2rad($dec_itter_deg_set)));
-    $psi_ref_rise = acos(sin(deg2rad($latitude_place_decimal_deg)) / cos(deg2rad($dec_itter_deg_rise)));
+    $psi_ref_set = acos(sin(deg2rad($latitude_place_decimal_deg)) / cos(deg2rad($dec_corr_set)));
+    $psi_ref_rise = acos(sin(deg2rad($latitude_place_decimal_deg)) / cos(deg2rad($dec_corr_rise)));
     $y_ref_set = rad2deg(asin(sin(deg2rad($x_ref_set)) / sin($psi_ref_set)));
     $y_ref_rise = rad2deg(asin(sin(deg2rad($x_ref_rise)) / sin($psi_ref_rise)));
-    $lst_correcton_hour_set = (240 / 3600) * ($y_ref_set / cos(deg2rad($dec_itter_deg_set)));
-    $lst_correcton_hour_rise = (240 / 3600) * ($y_ref_rise / cos(deg2rad($dec_itter_deg_rise)));
+    $lst_correcton_hour_set = (240 / 3600) * ($y_ref_set / cos(deg2rad($dec_corr_set)));
+    //echo "lst_correcton_hour_set: ".$lst_correcton_hour_set."<br>";
+    $lst_correcton_hour_rise = (240 / 3600) * ($y_ref_rise / cos(deg2rad($dec_corr_rise)));
+    //echo "lst_correcton_hour_rise: ".$lst_correcton_hour_rise."<br>";
     //////
 
     $local_sid_time_rise_dec_cor = $local_sid_time_rise_dec - $lst_correcton_hour_rise;
     if($local_sid_time_rise_dec_cor > 24){
         $local_sid_time_rise_dec_cor = $local_sid_time_rise_dec_cor - 24;
-        $day_rise = $day_rise + 1;
+        //$day_rise = $day_rise + 1;
     }
     elseif ($local_sid_time_rise_dec_cor < 0){
         $local_sid_time_rise_dec_cor = $local_sid_time_rise_dec_cor + 24;
-        $day_rise = $day_rise - 1;
+        //$day_rise = $day_rise - 1;
     }
 
     $local_sid_time_set_dec_cor = $local_sid_time_set_dec + $lst_correcton_hour_set;
-    if($local_sid_time_set_dec_cor > 24){
-        $local_sid_time_set_dec_cor = $local_sid_time_set_dec_cor - 24;
-        $day_set = $day_set + 1;
-    }
-    elseif ($local_sid_time_set_dec_cor < 0){
-        $local_sid_time_set_dec_cor = $local_sid_time_set_dec_cor + 24;
-        $day_set = $day_set - 1;
-    }
+//    if($local_sid_time_set_dec_cor > 24){
+//        $local_sid_time_set_dec_cor = $local_sid_time_set_dec_cor - 24;
+//        $day_set = $day_set + 1;
+//    }
+//    elseif ($local_sid_time_set_dec_cor < 0){
+//        $local_sid_time_set_dec_cor = $local_sid_time_set_dec_cor + 24;
+//        $day_set = $day_set - 1;
+//    }
     $local_sid_time_set_sep_cor = hours_to_sep($local_sid_time_set_dec_cor);
+    //echo "local_sid_time_set_sep_cor: ",$local_sid_time_set_sep_cor."<br>";
     $local_sid_time_rise_sep_cor = hours_to_sep($local_sid_time_rise_dec_cor);
-    $civil_time_dec_rise = LT_ST_time($year_m, $month_m, $day_rise, $local_sid_time_rise_sep_cor);
-    $civil_time_dec_set = LT_ST_time($year_m, $month_m, $day_set, $local_sid_time_set_sep_cor);
+    //echo "local_sid_time_rise_sep_cor: ",$local_sid_time_rise_sep_cor."<br>";
+    $civil_time_dec_rise = LST_to_loc_CT($year_m, $month_m, $day_rise, $local_sid_time_rise_sep_cor);
+    if($civil_time_dec_rise > 24){
+        $civil_time_dec_rise = $civil_time_dec_rise - 24;
+    }
+    elseif ($civil_time_dec_rise < 0){
+        $civil_time_dec_rise = $civil_time_dec_rise + 24;
+    }
+    $civil_time_dec_set = LST_to_loc_CT($year_m, $month_m, $day_set, $local_sid_time_set_sep_cor);
+    if($civil_time_dec_set > 24){
+        $civil_time_dec_set = $civil_time_dec_set - 24;
+    }
+    elseif ($civil_time_dec_set < 0){
+        $civil_time_dec_set = $civil_time_dec_set + 24;
+    }
     $set_rise_arr = array($civil_time_dec_rise, $civil_time_dec_set);
+    //echo "rise: ",$set_rise_arr[0]."<br>";
+    //echo "set: ",$set_rise_arr[1]."<br>";
     return $set_rise_arr;
 }
+
+//$a = set_rise_moon_new(2022,3,6);
 
 function set_rise_moon_sep($year_m, $month_m, $day_m):array{
     $temp_arr = Set_rise_moon_new($year_m, $month_m, $day_m);
     $rise_dec = $temp_arr[0];
     $set_dec =  $temp_arr[1];
-    $rise_sep = substr(hours_to_sep($rise_dec), 0, -3);
-    $set_sep = substr(hours_to_sep( $set_dec), 0, -3);
+    $rise_sep = hours_to_sep($rise_dec);
+    $set_sep = hours_to_sep( $set_dec);
     $sep_array = array($rise_sep, $set_sep);
     return $sep_array;
 
 }
 //
-//$set_rise = set_rise_moon_sep(2022,3,30);
+//$set_rise = set_rise_moon_sep(2012,3,6);
 //echo "Rise: ".$set_rise[0]."<br>";
 //echo "Set: ".$set_rise[1]."<br>";
 
