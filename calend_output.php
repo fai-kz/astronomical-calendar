@@ -1,11 +1,15 @@
 <link rel='stylesheet' href='css/styles.css'>
-<p class="title"><b>Астрономический календарь г. Алматы</b></p>
+<p class="title"><b>Астрономический календарь </b></p>
 <!--<p class="title"><b>Астрономический календарь для дома пр. Ветеранов 25</b></p>-->
 <?php
 require "test.php";
 //include "sun.php";
 //require "sun.php";
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    $longitude = $_POST["long"];
+    $latitude = $_POST["lat"];
+    $altitude = $_POST["altitude"];
+    $time_zone = $_POST["zone"];
     $year_id = (int)trim($_POST["year"]);
     if($year_id < 1800 or $year_id > 2200){
         $year_id =  0;
@@ -46,7 +50,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $g = array();
         $g = month_sid_time($year_id,$month_id);
         echo "<div align='center'>";
-        echo "Год: ".$year_id.", Месяц: ".$month_id;
+        echo "Год: ".$year_id.", Месяц: ".$month_id."<br>";
+        echo "Широта: ".$latitude." Долгота: ".$longitude." Часовой пояс: ".$time_zone."<br>";
 
         echo "<p><b>Локальное звездное время на 00:00:00 местного времени</b></p>";
 
@@ -70,7 +75,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         echo "<p><b>&nbsp &nbsp</b></p>";
         echo "Год: ".$year_id.", Месяц: ".$month_id;
 
-        echo "<p><b>Восход и заход Солнца, сумерки по местному времени (UTC +6 ч.)</b></p>";
+        echo "<p><b>Восход и заход Солнца, сумерки по местному времени </b></p>";
 
         echo "<table align='center'>";
         echo "<thead>
@@ -100,7 +105,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $moon_type = moon_type($year_id, $month_id);
         echo "<div align='center'>";
         echo "Год: ".$year_id.", Месяц: ".$month_id;
-        echo "<p><b>Восход и заход Луны по местному времени (UTC +6 ч.), фазы</b></p>";
+        echo "Широта: ".$latitude." Долгота: ".$longitude." Часовой пояс: ".$time_zone."<br>";
+
+        echo "<p><b>Восход и заход Луны по местному времени, фазы</b></p>";
 
         echo "<table align='center'>";
         echo "<thead>
@@ -125,8 +132,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $twi_nav = month_twi_time_nav($year_id, $month_id);
         $twi_civil = month_twi_time_civil($year_id, $month_id);
         echo "<div align='center'>";
-        echo "Год: ".$year_id.", Месяц: ".$month_id;
-        echo "<p><b>Восход и заход Солнца, сумерки по местному времени (UTC +6 ч.)</b></p>";
+        echo "Год: ".$year_id.", Месяц: ".$month_id."<br>";
+        echo "<br>";
+        echo "Широта: ".$latitude.";"." Долгота: ".$longitude.";"." Часовой пояс: ".$time_zone.";"."<br>";
+        echo "<p><b>Восход и заход Солнца, сумерки по местному времени</b></p>";
 
         echo "<table align='center'>";
         echo "<thead>
