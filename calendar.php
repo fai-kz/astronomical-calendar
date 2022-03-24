@@ -4,8 +4,9 @@
 <form action="calend_output.php" method="post">
 
     <p class="tag"><b> Координаты места </b></p>
+    <p class="tag"><b> (По умолчанию координаты  центра Алматы) </b></p>
     <div id="menu_inst">
-    Широта &nbsp <input type="text" name="lat" size="5" value="43.25">&nbsp &nbsp Долгота &nbsp <input type="text" name="long" size="5" value="76.87"><br><br>
+    Широта &nbsp <input type="text" name="lat" size="5" value="43.25">&nbsp &nbsp Долгота &nbsp <input type="text" name="long" size="5" value="76.95"><br><br>
         Высота над ур. м. &nbsp <input type="text" name="altitude" size="5" value="0"> (м)&nbsp &nbsp Час. пояс &nbsp <input type="text" name="zone" size="5" value="6"> от UTC
     </div>
         <p class="tag"><b> Введите год и выберите месяц </b></p>
@@ -29,17 +30,23 @@
     </div>
     <p class="tag" ><b> Интересующие данные </b></p>
     <div class="additional">
-        <p > &nbsp &nbsp </p>
+<!--        <p > &nbsp &nbsp </p>-->
         <input type="radio" name="type_data" value=1> Звёздное время (локальное)  &nbsp
         <input type="radio" name="type_data" value=2> Восход, заход Солнца, сумерки &nbsp
         <input type="radio" name="type_data" value=3> Восход, заход Луны, фазы &nbsp <br><br>
         <input type="radio" name="type_data" value=5> Равноденствия и солнцестояния &nbsp
 <!--        <input type="radio" name="type_data" value=4> Все данные &nbsp-->
     </div>
+    <div class="tag">
+    <p class="additional2" ><b> Введите цифры на картинке </b></p>
+        <p><img src="captcha.php"></p>
+    <input class="additional2" type="text" name="norobot">
+
+    </div>
     <p class="tag"><button type="submit" name="submission">Рассчитать</button></p>
 </form>
 
 <div class="additional1">
 <p > Программу для расчетов календаря подготовил старший научный сотрудник АФИФ, к.ф.-м.н. Виталий Ким </b></p>
-<p> kim@fai.kz </b></p>
+<p> kim@aphi.kz </b></p>
 </div>
