@@ -12,7 +12,7 @@ $altitude_place = $_POST['altitude']; // Altitude (in meters) over the sea level
 //$altitude_place = 0;
 //$longitude_place_decimal_deg = 76.95; // longitude of some place in decimal degrees (in this case Almaty longitude)
 //$longitude_place_decimal_deg = 0; // longitude of some place in decimal degrees (in this case Almaty longitude)
-//$latitude_place_decimal_deg = 45; // latitude of some place in decimal degrees (in this case Almaty longitude)
+//$latitude_place_decimal_deg = 43.25; // latitude of some place in decimal degrees (in this case Almaty longitude)
 //$Time_Zone = 0; // time zone from UTC (in this case Almaty time zone)
 
 //// Julian Date calculation /////////////////// (float)
@@ -396,6 +396,20 @@ function Local_time_to_LST($year_ct, $month_ct, $day_ct, $time_ct = "00:00:00"){
     $loc_sid_time_dec = $glob_sid_time_dec + ($longitude_place_decimal_deg / 15);
     return $loc_sid_time_dec;
 }
+
+function Local_time_to_LST_calc($year_ct, $month_ct, $day_ct, $time_ct = "00:00:00"){
+    global $longitude_place_decimal_deg;
+    //global $Time_Zone;
+    $time_ct_dec = time_dec($time_ct);
+    $time_ut_dec = $time_ct_dec;
+    $time_ut_sep = hours_to_sep2($time_ut_dec);
+    //echo "time_ut_sep: ".$time_ut_sep."<br>";
+    $glob_sid_time_dec = UT_to_GST($year_ct, $month_ct, $day_ct, $time_ut_sep);
+    $loc_sid_time_dec = $glob_sid_time_dec + ($longitude_place_decimal_deg / 15);
+    return $loc_sid_time_dec;
+}
+
+
 //$temp = Local_time_to_LST(2021,1,2,"00:00:00");
 //echo "lst: ".hours_to_sep($temp)."<br>";
 
@@ -410,6 +424,48 @@ function LST_to_loc_CT($year_lst, $month_lst, $day_lst, $time_lst = "00:00:00"){
     //echo "day_lst: ".$day_lst."<br>";
     return $civil_time_dec;
 }
+
+function GST_to_UT_calc($year_gst, $month_gst, $day_gst, $time_gst = "00:00:00"){
+    $time_gst_dec = time_dec($time_gst);
+    if($time_gst_dec > 24){
+        $time_gst_dec = $time_gst_dec - 24;
+        //$day_gst = $day_gst + 1;
+    }
+    elseif ($time_gst_dec < 0){
+        $time_gst_dec = $time_gst_dec + 24;
+        //$day_gst = $day_gst - 1;
+    }
+    $date_jd = julian_date($year_gst, $month_gst, $day_gst);
+    $rel_jd = $date_jd - 2451545;
+    $centuries = $rel_jd / 36525;
+    $T_0 = 6.697374558 + (2400.051336 * $centuries) + (0.000025862 * pow($centuries, 2));
+    $reduce_T = fmod($T_0, 24);
+    if ($reduce_T < 0){
+        $reduce_T = $reduce_T + 24;
+    }
+    $ut_1 = $time_gst_dec - $reduce_T;
+    if ($ut_1 > 24){
+        $ut_1 = $ut_1 -24;
+    }
+    elseif ($ut_1 < 0){
+        $ut_1 = $ut_1 + 24;
+    }
+    $ut_dec = $ut_1 * 0.9972695663;
+    return $ut_dec;
+}
+
+function LST_to_loc_CT_calc($year_lst, $month_lst, $day_lst, $time_lst = "00:00:00"){
+    global $longitude_place_decimal_deg;
+    //global $Time_Zone;
+    $time_lst_dec = time_dec($time_lst);
+    $time_gst_dec = $time_lst_dec - ($longitude_place_decimal_deg / 15);
+    $time_gst_sep = hours_to_sep2($time_gst_dec);
+    $ut_dec = GST_to_UT_calc($year_lst, $month_lst, $day_lst,$time_gst_sep);
+    $civil_time_dec = $ut_dec;
+    //echo "day_lst: ".$day_lst."<br>";
+    return $civil_time_dec;
+}
+
 //$temp2 = LST_to_loc_CT(2021,1,1,"00:00:00");
 //echo "temp2 ".hours_to_sep($temp2 )."<br>";
 
@@ -558,7 +614,7 @@ function hours_to_sep2($hours_dec):string{
     $other_part2 = $other_part1 * 60;
     $minutes = (int)$other_part2;
     $seconds = ((($other_part2 - (int)$other_part2)*60));
-    if($int_hours < 10 and $int_hours > 0){
+    if($int_hours < 10 and $int_hours >= 0){
         $int_hours ="0".$int_hours;
     }
     elseif ($int_hours < 0){
@@ -670,7 +726,9 @@ function Solar_position ($year_sol, $month_sol, $day_sol, $loc_time = "00:00:00"
     $ecliptic_longitude_deg = $mean_longitude_deg - $mean_anomaly_deg + $true_anomaly_deg - 0.00569 - 0.00478 * sin($Omega_rad) + nutation_obliquity_correction ($T_2000)[0];
     //echo "ecliptic_longitude_deg".$ecliptic_longitude_deg."<br>";
     $ecliptic_longitude_rad = deg2rad($ecliptic_longitude_deg);
-    $ecliptic_inclination_deg = 23.43929078 - (46.8150 / 3600) * $T_2000 - ((0.00059 / 3600) * pow($T_2000, 2)) + ((0.001813 / 3600)*pow($T_2000, 3)) + nutation_obliquity_correction ($T_2000)[1];
+    $distance_astr_unit = 1.000001018 * (1 - pow($eccentricity_2010,2)) / (1 + $eccentricity_2010 * cos($true_anomaly_rad));
+    $abberation_corr_deg = -0.00569161 / $distance_astr_unit;
+    $ecliptic_inclination_deg = 23.43929078 - (46.8150 / 3600) * $T_2000 - ((0.00059 / 3600) * pow($T_2000, 2)) + ((0.001813 / 3600)*pow($T_2000, 3)) + nutation_obliquity_correction ($T_2000)[1] + $abberation_corr_deg;
     //echo "ecliptic_inclination_deg".$ecliptic_inclination_deg."<br>";
     $ecliptic_inclination_rad = deg2rad($ecliptic_inclination_deg);
 //  //$RA_sun_deg = rad2deg(atan(cos($ecliptic_inclination_rad) * tan($ecliptic_longitude_rad)));
@@ -780,14 +838,14 @@ function Solar_position ($year_sol, $month_sol, $day_sol, $loc_time = "00:00:00"
     $u_rad = atan(0.99664719 * tan(deg2rad($latitude_place_decimal_deg)));
     $rho_sin_phi = 0.9964719 * sin($u_rad) + ($altitude_place / 6378140) * sin(deg2rad($latitude_place_decimal_deg));
     $rho_cos_phi = cos($u_rad) + ($altitude_place / 6378140) * cos(deg2rad($latitude_place_decimal_deg));
-    $hour_angl_hour_dec = Local_time_to_LST($year_sol, $month_sol, $day_sol, $loc_time) - $RA_sun_hour_dec;
+    $hour_angl_hour_dec = Local_time_to_LST_calc($year_sol, $month_sol, $day_sol, $loc_time) - $RA_sun_hour_dec;
     if ($hour_angl_hour_dec < 0){
         $hour_angl_hour_dec = $hour_angl_hour_dec + 24;
     }
     elseif ($hour_angl_hour_dec > 24){
         $hour_angl_hour_dec = $hour_angl_hour_dec - 24;
     }
-    $distance_astr_unit = 1.000001018 * (1 - pow($eccentricity_2010,2)) / (1 + $eccentricity_2010 * cos($true_anomaly_rad));
+
     $parallax_arcsec = 8.794 / $distance_astr_unit;
     $parallax_hour = $parallax_arcsec / 3600;
     $parallax_deg = $parallax_hour * 15;
@@ -914,11 +972,24 @@ function twilights_astr($year_twi, $month_twi, $day_twi):array{
     $hour_angle_set_finish_deg = rad2deg(acos((cos(deg2rad(108)) - sin($latitude_place_radian) * sin($DEC_set_rad)) / (cos($latitude_place_radian) * cos($DEC_set_rad))));
     $continuum_tw_rise_hour = ($hour_angle_rise_finish_deg - $hour_angle_rise_start_deg) / 15;
     $continuum_tw_set_hour = ($hour_angle_set_finish_deg - $hour_angle_set_start_deg) / 15;
-    $temp_array3 = Set_rise_sun_new($year_twi, $month_twi, $day_twi);
+    $temp_array3 = Set_rise_sun_new2($year_twi, $month_twi, $day_twi);
     $twi_before_rise_dec = $temp_array3[0] - $continuum_tw_rise_hour;
     $twi_after_set_dec = $temp_array3[1] + $continuum_tw_set_hour;
+    if ($twi_before_rise_dec > 24){
+        $twi_before_rise_dec = $twi_before_rise_dec - 24;
+    }
+    if($twi_after_set_dec > 24){
+        $twi_after_set_dec = $twi_after_set_dec - 24;
+    }
     $twi_before_rise_sep = hours_to_sep($twi_before_rise_dec);
+    if ($twi_before_rise_sep == "00:00:00"){
+        $twi_before_rise_sep = "--:--:--";
+    }
+
     $twi_after_set_sep = hours_to_sep($twi_after_set_dec);
+    if ($twi_after_set_sep == "00:00:00"){
+        $twi_after_set_sep = "--:--:--";
+    }
     $twilights_astr_arr = array($twi_before_rise_sep, $twi_after_set_sep);
     return $twilights_astr_arr;
 }
@@ -972,11 +1043,23 @@ function twilights_nav($year_nav, $month_nav, $day_nav):array{
     $hour_angle_set_finish_deg = rad2deg(acos((cos(deg2rad(102)) - sin($latitude_place_radian) * sin($DEC_set_rad)) / (cos($latitude_place_radian) * cos($DEC_set_rad))));
     $continuum_tw_rise_hour = ($hour_angle_rise_finish_deg - $hour_angle_rise_start_deg) / 15;
     $continuum_tw_set_hour = ($hour_angle_set_finish_deg - $hour_angle_set_start_deg) / 15;
-    $temp_array3 = Set_rise_sun_new($year_nav, $month_nav, $day_nav);
+    $temp_array3 = Set_rise_sun_new2($year_nav, $month_nav, $day_nav);
     $twi_before_rise_dec = $temp_array3[0] - $continuum_tw_rise_hour;
     $twi_after_set_dec = $temp_array3[1] + $continuum_tw_set_hour;
+    if ($twi_before_rise_dec > 24){
+        $twi_before_rise_dec = $twi_before_rise_dec - 24;
+    }
+    if($twi_after_set_dec > 24){
+        $twi_after_set_dec = $twi_after_set_dec - 24;
+    }
     $twi_before_rise_sep = hours_to_sep($twi_before_rise_dec);
+    if ($twi_before_rise_sep == "00:00:00"){
+        $twi_before_rise_sep = "--:--:--";
+    }
     $twi_after_set_sep = hours_to_sep($twi_after_set_dec);
+    if ($twi_after_set_sep == "00:00:00"){
+        $twi_after_set_sep = "--:--:--";
+    }
     $twilights_nav_arr = array($twi_before_rise_sep, $twi_after_set_sep);
     return $twilights_nav_arr;
 }
@@ -997,11 +1080,23 @@ function twilights_civil($year_civil, $month_civil, $day_civil):array{
     $hour_angle_set_finish_deg = rad2deg(acos((cos(deg2rad(96)) - sin($latitude_place_radian) * sin($DEC_set_rad)) / (cos($latitude_place_radian) * cos($DEC_set_rad))));
     $continuum_tw_rise_hour = ($hour_angle_rise_finish_deg - $hour_angle_rise_start_deg) / 15;
     $continuum_tw_set_hour = ($hour_angle_set_finish_deg - $hour_angle_set_start_deg) / 15;
-    $temp_array3 = Set_rise_sun_new($year_civil, $month_civil, $day_civil);
+    $temp_array3 = Set_rise_sun_new2($year_civil, $month_civil, $day_civil);
     $twi_before_rise_dec = $temp_array3[0] - $continuum_tw_rise_hour;
     $twi_after_set_dec = $temp_array3[1] + $continuum_tw_set_hour;
+    if ($twi_before_rise_dec > 24){
+        $twi_before_rise_dec = $twi_before_rise_dec - 24;
+    }
+    if($twi_after_set_dec > 24){
+        $twi_after_set_dec = $twi_after_set_dec - 24;
+    }
     $twi_before_rise_sep = hours_to_sep($twi_before_rise_dec);
+    if ($twi_before_rise_sep == "00:00:00"){
+        $twi_before_rise_sep = "--:--:--";
+    }
     $twi_after_set_sep = hours_to_sep($twi_after_set_dec);
+    if ($twi_after_set_sep == "00:00:00"){
+        $twi_after_set_sep = "--:--:--";
+    }
     $twilights_civil_arr = array($twi_before_rise_sep, $twi_after_set_sep);
     return $twilights_civil_arr;
 }
@@ -1550,7 +1645,7 @@ function Moon_position_new($year_moon, $month_moon, $day_moon, $time_ut = "00:00
     //$loc_sid_time = LST($year_moon, $month_moon, $day_moon, $time_ut);
     //$hour_angle_hour = $loc_sid_time - $RA_moon_hour_dec;
     //$hour_angle_deg = $hour_angle_hour * 15;
-    $hour_angl_hour_dec = Local_time_to_LST($year_moon, $month_moon, $day_moon, $time_ut) - $RA_moon_hour_dec;
+    $hour_angl_hour_dec = Local_time_to_LST_calc($year_moon, $month_moon, $day_moon, $time_ut) - $RA_moon_hour_dec;
     //echo "hour_angl_hour_dec".$hour_angl_hour_dec."<br>";
     $hour_angle_deg = $hour_angl_hour_dec * 15;
     if($hour_angle_deg < 0){
@@ -1902,8 +1997,11 @@ function distance_array($E, $D_mean_elong_moon_rad, $M_mean_sun_anomaly_rad, $M_
 
 //// Moon phases
 function Moon_phase($year_ph, $month_ph, $day_ph, $time_ut = "00:00:00"):float{
-    $temp_array1 = Moon_position_new($year_ph, $month_ph, $day_ph, $time_ut);
-    $temp_array2 = Solar_position($year_ph, $month_ph, $day_ph, $time_ut = "00:00:00");
+    global $Time_Zone;
+    $time_dec = time_dec($time_ut) - $Time_Zone;
+    $time_sep = hours_to_sep2($time_dec);
+    $temp_array1 = Moon_position_new($year_ph, $month_ph, $day_ph, $time_sep);
+    $temp_array2 = Solar_position($year_ph, $month_ph, $day_ph, $time_sep);
     $Solar_RA_deg = $temp_array2[2] * 15;
     $Solar_DEC = $temp_array2[3];
     $Moon_RA_deg = $temp_array1[2] * 15;
@@ -2002,13 +2100,16 @@ function Moon_phase($year_ph, $month_ph, $day_ph, $time_ut = "00:00:00"):float{
 //echo "Phase of Moon: ".$a."<br>";
 
 
-
-function set_rise_moon_new($year_m, $month_m, $day_m){
+function set_rise_moon_new2($year_m, $month_m, $day_m){
     global $latitude_place_decimal_deg;
-
+    global $Time_Zone;
+    //echo "$Time_Zone"."<br>";
+    $day_rise = $day_m;
+    $day_set = $day_m;
     $time_start_set = "00:00:00";
+
     for($i = 1; $i < 6; $i++){
-        $temp_array2 = Moon_position_new($year_m, $month_m, $day_m, $time_start_set);
+        $temp_array2 = Moon_position_new($year_m, $month_m, $day_set, $time_start_set);
         $ra_corr_set = $temp_array2[0];
         //echo "ra_corr_set: ".$i." - ".$ra_corr_set."<br>";
         $dec_corr_set = $temp_array2[1];
@@ -2028,15 +2129,15 @@ function set_rise_moon_new($year_m, $month_m, $day_m){
 //            $local_sid_time_set_dec = $local_sid_time_set_dec + 24;
 //            $day_set = $day_set - 1;
 //        }
-        $local_sid_time_set_sep = hours_to_sep($local_sid_time_set_dec);
+        $local_sid_time_set_sep = hours_to_sep2($local_sid_time_set_dec);
         //echo "local_sid_time_set_sep: ".$i." - ".$local_sid_time_set_sep."<br>";
-        $local_civil_time_set = LST_to_loc_CT($year_m, $month_m, $day_set, $local_sid_time_set_sep);
-        $time_start_set = hours_to_sep($local_civil_time_set);
-        //echo "time_start_set: ".$i." - ".$time_start_set."<br>";
+        $local_civil_time_set = LST_to_loc_CT_calc($year_m, $month_m, $day_set, $local_sid_time_set_sep);
+        $time_start_set = hours_to_sep2($local_civil_time_set);
+        //echo "time_start_set: ".$i." - "df.$time_start_set."<br>";
     }
 
     $time_start_rise = "00:00:00";
-    $day_rise = $day_m;
+
     for($g = 1; $g < 6; $g++){
 //        $temp_array11 = Moon_position($year_m, $month_m, $day_m, $time_start_rise);
 //        $ra_itter_hr_rise = $temp_array11[6];
@@ -2056,17 +2157,17 @@ function set_rise_moon_new($year_m, $month_m, $day_m){
 //            $local_sid_time_rise_dec = $local_sid_time_rise_dec + 24;
 //            $day_rise = $day_rise - 1;
 //        }
-        $local_sid_time_rise_sep = hours_to_sep($local_sid_time_rise_dec);
+        $local_sid_time_rise_sep = hours_to_sep2($local_sid_time_rise_dec);
         //echo "local_sid_time_rise_sep: ".$local_sid_time_rise_sep."<br>";
-        $local_civil_time_rise = LST_to_loc_CT($year_m, $month_m, $day_rise, $local_sid_time_rise_sep);
-        $time_start_rise = hours_to_sep($local_civil_time_rise);
+        $local_civil_time_rise = LST_to_loc_CT_calc($year_m, $month_m, $day_rise, $local_sid_time_rise_sep);
+        $time_start_rise = hours_to_sep2($local_civil_time_rise);
         //echo "time_start_rise: ".$time_start_rise."<br>";
     }
 
     //// refraction and disk size corrections
     $refraction_horiz_deg = 0.567;
-    $moon_param_temp_set = Moon_position_new($year_m, $month_m, $day_m, $time_start_set);
-    $moon_param_temp_rise = Moon_position_new($year_m, $month_m, $day_m, $time_start_rise);
+    $moon_param_temp_set = Moon_position_new($year_m, $month_m, $day_set, $time_start_set);
+    $moon_param_temp_rise = Moon_position_new($year_m, $month_m, $day_rise, $time_start_rise);
     $angular_size_moon_set_deg = $moon_param_temp_set[9];
     $angular_size_moon_rise_deg = $moon_param_temp_rise[9];
     $x_ref_set = $refraction_horiz_deg + ($angular_size_moon_set_deg / 2);
@@ -2082,14 +2183,14 @@ function set_rise_moon_new($year_m, $month_m, $day_m){
     //////
 
     $local_sid_time_rise_dec_cor = $local_sid_time_rise_dec - $lst_correcton_hour_rise;
-    if($local_sid_time_rise_dec_cor > 24){
-        $local_sid_time_rise_dec_cor = $local_sid_time_rise_dec_cor - 24;
-        //$day_rise = $day_rise + 1;
-    }
-    elseif ($local_sid_time_rise_dec_cor < 0){
-        $local_sid_time_rise_dec_cor = $local_sid_time_rise_dec_cor + 24;
-        //$day_rise = $day_rise - 1;
-    }
+//    if($local_sid_time_rise_dec_cor > 24){
+//        $local_sid_time_rise_dec_cor = $local_sid_time_rise_dec_cor - 24;
+//        //$day_rise = $day_rise + 1;
+//    }
+//    elseif ($local_sid_time_rise_dec_cor < 0){
+//        $local_sid_time_rise_dec_cor = $local_sid_time_rise_dec_cor + 24;
+//        //$day_rise = $day_rise - 1;
+//    }
 
     $local_sid_time_set_dec_cor = $local_sid_time_set_dec + $lst_correcton_hour_set;
 //    if($local_sid_time_set_dec_cor > 24){
@@ -2100,18 +2201,18 @@ function set_rise_moon_new($year_m, $month_m, $day_m){
 //        $local_sid_time_set_dec_cor = $local_sid_time_set_dec_cor + 24;
 //        $day_set = $day_set - 1;
 //    }
-    $local_sid_time_set_sep_cor = hours_to_sep($local_sid_time_set_dec_cor);
+    $local_sid_time_set_sep_cor = hours_to_sep2($local_sid_time_set_dec_cor);
     //echo "local_sid_time_set_sep_cor: ",$local_sid_time_set_sep_cor."<br>";
-    $local_sid_time_rise_sep_cor = hours_to_sep($local_sid_time_rise_dec_cor);
+    $local_sid_time_rise_sep_cor = hours_to_sep2($local_sid_time_rise_dec_cor);
     //echo "local_sid_time_rise_sep_cor: ",$local_sid_time_rise_sep_cor."<br>";
-    $civil_time_dec_rise = LST_to_loc_CT($year_m, $month_m, $day_rise, $local_sid_time_rise_sep_cor);
+    $civil_time_dec_rise = LST_to_loc_CT_calc($year_m, $month_m, $day_rise, $local_sid_time_rise_sep_cor) + $Time_Zone;
     if($civil_time_dec_rise > 24){
         $civil_time_dec_rise = $civil_time_dec_rise - 24;
     }
     elseif ($civil_time_dec_rise < 0){
         $civil_time_dec_rise = $civil_time_dec_rise + 24;
     }
-    $civil_time_dec_set = LST_to_loc_CT($year_m, $month_m, $day_set, $local_sid_time_set_sep_cor);
+    $civil_time_dec_set = LST_to_loc_CT_calc($year_m, $month_m, $day_set, $local_sid_time_set_sep_cor) + $Time_Zone;
     if($civil_time_dec_set > 24){
         $civil_time_dec_set = $civil_time_dec_set - 24;
     }
@@ -2124,10 +2225,12 @@ function set_rise_moon_new($year_m, $month_m, $day_m){
     return $set_rise_arr;
 }
 
-//$a = set_rise_moon_new(2022,3,6);
+//$a = set_rise_moon_new2(2022,3,15);
+//echo "rise: ",$a[0]."<br>";
+//echo "set: ",$a[1]."<br>";
 
 function set_rise_moon_sep($year_m, $month_m, $day_m):array{
-    $temp_arr = Set_rise_moon_new($year_m, $month_m, $day_m);
+    $temp_arr = Set_rise_moon_new2($year_m, $month_m, $day_m);
     $rise_dec = $temp_arr[0];
     $set_dec =  $temp_arr[1];
     $rise_sep = hours_to_sep($rise_dec);
@@ -2136,8 +2239,8 @@ function set_rise_moon_sep($year_m, $month_m, $day_m):array{
     return $sep_array;
 
 }
-//
-//$set_rise = set_rise_moon_sep(2012,3,6);
+
+//$set_rise = set_rise_moon_sep(2022,3,15);
 //echo "Rise: ".$set_rise[0]."<br>";
 //echo "Set: ".$set_rise[1]."<br>";
 
@@ -2203,10 +2306,10 @@ function Moon_phase_month($year_moon, $month_moon){
 function moon_type($year_moon, $month_moon){
     $temp_array1 = Moon_phase_month($year_moon, $month_moon);
     $moon_type = array();
-    $symb_asc = "Р";
-    $symb_des = "У";
-    $symb_new = "Н";
-    $symb_full = "П";
+    $symb_asc = "Растущая";
+    $symb_des = "Убывающая";
+    $symb_new = "Новая";
+    $symb_full = "Полная";
     for($i = 0; $i < count($temp_array1); $i++){
         if($i == 0){
             if((Moon_phase($year_moon, $month_moon,0) > $temp_array1[($i)]) and ($temp_array1[($i)] != 0) and ($temp_array1[($i)] != 1)){
@@ -2307,14 +2410,7 @@ function additional_eq($jd){
 
 //// spring\fall equinox, summer\winter solstice,
 function equinox_solstice_year_jd ($year_eq){
-//    $year_eq = (int)$year_eq;
-//    $thous_yr = $year_eq / 1000;
-//    $spring_eq_jd = 1721139.2855 + 365.2421376 *  $year_eq + 0.0679190 * pow($thous_yr, 2) - 0.0027879 * pow($thous_yr, 3);
-//    $summer_sols_jd = 1721233.2486 + 365.2417284 * $year_eq - 0.0530180 * pow($thous_yr, 2) + 0.0093320 * pow($thous_yr, 3);
-//    $fall_eq_jd = 1721325.6978 + 365.2425055 * $year_eq - 0.1266890 * pow($thous_yr, 2) + 0.0019401 * pow($thous_yr, 3);
-//    $winter_sols_jd = 1721414.3920 + 365.2428898 * $year_eq - 0.0109650 * pow($thous_yr, 2) - 0.0084885 * pow($thous_yr, 3);
-//    $eq_sol_arr = array($spring_eq_jd, $summer_sols_jd, $fall_eq_jd, $winter_sols_jd);
-//    return $eq_sol_arr;
+    global $Time_Zone;
     $year_eq = (int)$year_eq;
     $thous_yr_ep = ($year_eq - 2000) / 1000;
     $spring_eq_jd = 2451623.80984 + (365242.37404 * $thous_yr_ep) + (0.05169 * pow($thous_yr_ep ,2)) - (0.00411 * pow($thous_yr_ep, 3)) - (0.00057 * pow($thous_yr_ep, 4));
@@ -2322,12 +2418,29 @@ function equinox_solstice_year_jd ($year_eq){
     //echo "summer_sols_jd".$summer_sols_jd."<br>";
     $fall_eq_jd = 2451810.21715 + (365242.01767 * $thous_yr_ep) - (0.11575 * pow($thous_yr_ep ,2)) + (0.00337 * pow($thous_yr_ep ,3)) + (0.00078 * pow($thous_yr_ep ,4));
     $winter_sols_jd = 2451900.05952 + (365242.74049 * $thous_yr_ep) - (0.06223 * pow($thous_yr_ep ,2)) - (0.00823 * pow($thous_yr_ep ,3)) + (0.00032 * pow($thous_yr_ep ,4));
-    $mod_spring_eq_jd = additional_eq($spring_eq_jd);
-    $mod_summer_sols_jd = additional_eq($summer_sols_jd);
-    $mod_fall_eq_jd = additional_eq($fall_eq_jd);
-    $mod_winter_sols_jd = additional_eq($winter_sols_jd);
-    $eq_sol_arr = array($mod_spring_eq_jd, $mod_summer_sols_jd, $mod_fall_eq_jd, $mod_winter_sols_jd);
+    $time_corr_day = (Dynamical_time_corr($year_eq)) / (24 * 3600);
+    $utc_spring_eq_jd = additional_eq($spring_eq_jd) - $time_corr_day;
+    $utc_summer_sols_jd = additional_eq($summer_sols_jd) - $time_corr_day;
+    $utc_fall_eq_jd = additional_eq($fall_eq_jd) - $time_corr_day;
+    $utc_winter_sols_jd = additional_eq($winter_sols_jd) - $time_corr_day;
+    $local_spring_eq_jd = $utc_spring_eq_jd + ($Time_Zone / 24);
+    $local_summer_sols_jd = $utc_summer_sols_jd + ($Time_Zone / 24);
+    $local_fall_eq_jd = $utc_fall_eq_jd + ($Time_Zone / 24);
+    $local_winter_sols_jd = $utc_winter_sols_jd + ($Time_Zone / 24);
+    $eq_sol_arr = array($utc_spring_eq_jd, $utc_summer_sols_jd, $utc_fall_eq_jd, $utc_winter_sols_jd, $local_spring_eq_jd, $local_summer_sols_jd, $local_fall_eq_jd, $local_winter_sols_jd);
     return $eq_sol_arr;
+}
+
+function Dynamical_time_corr ($year){
+    $correction_sec = 0;
+    if($year > 2000){
+       $t = ($year - 2000) / 100;
+        $correction_sec = 102 + 102 * $t + 25.3 * pow($t,2);
+        if($year < 2100){
+            $correction_sec = $correction_sec + 0.37 * ($year - 2100);
+        }
+    }
+    return $correction_sec;
 }
 
 //$tre = equinox_solstice_year_jd(2022);
@@ -2380,8 +2493,11 @@ function sun_corrections($DEC_dec){
     return $delta_t_hours;
 }
 
-function Set_rise_sun_new($year_sun, $month_sun, $day_sun):array{
+
+
+function Set_rise_sun_new2($year_sun, $month_sun, $day_sun):array{
     global $latitude_place_decimal_deg;
+    global $Time_Zone;
     $latitude_place_radian = deg2rad($latitude_place_decimal_deg);
     $tan_lat = tan($latitude_place_radian);
     $temp_array1 = Solar_position($year_sun, $month_sun, $day_sun);
@@ -2441,7 +2557,7 @@ function Set_rise_sun_new($year_sun, $month_sun, $day_sun):array{
 
     for($i = 1; $i < 5; $i++){
 
-        $temp_loc_civil_time_rise = LST_to_loc_CT($year_sun, $month_sun,  $day_rise_temp, $loc_sid_time_rise_hr_str);
+        $temp_loc_civil_time_rise = LST_to_loc_CT_calc($year_sun, $month_sun,  $day_rise_temp, $loc_sid_time_rise_hr_str);
         //echo "temp_loc_civil_time_rise: ".$temp_loc_civil_time_rise."<br>";
         $temp_loc_civil_time_rise_sep = lst_to_sep($temp_loc_civil_time_rise);
         //echo "temp_loc_civil_time_rise_sep: ".$temp_loc_civil_time_rise_sep."<br>";
@@ -2460,7 +2576,7 @@ function Set_rise_sun_new($year_sun, $month_sun, $day_sun):array{
 
     for($g = 1; $g < 5; $g++){
 
-        $temp_loc_civil_time_set = LST_to_loc_CT($year_sun, $month_sun,  $day_set_temp, $loc_sid_time_set_hr_str);
+        $temp_loc_civil_time_set = LST_to_loc_CT_calc($year_sun, $month_sun,  $day_set_temp, $loc_sid_time_set_hr_str);
         //echo "temp_loc_civil_time_set: ".$temp_loc_civil_time_set."<br>";
         $temp_loc_civil_time_set_sep = hours_to_sep($temp_loc_civil_time_set);
 
@@ -2480,7 +2596,7 @@ function Set_rise_sun_new($year_sun, $month_sun, $day_sun):array{
         //echo "loc_sid_time_set_hr_str: ".$loc_sid_time_set_hr_str."<br>";
     }
 
-    $local_civil_time_rise = $temp_loc_civil_time_rise - sun_corrections($temp_array_sun_coord[1]);
+    $local_civil_time_rise = $temp_loc_civil_time_rise - sun_corrections($temp_array_sun_coord[1]) + $Time_Zone;
     //echo "local_civil_time_rise: ".$local_civil_time_rise."<br>";
     if ($local_civil_time_rise > 24){
         $local_civil_time_rise = $local_civil_time_rise - 24;
@@ -2488,7 +2604,7 @@ function Set_rise_sun_new($year_sun, $month_sun, $day_sun):array{
     elseif ($local_civil_time_rise < 0){
         $local_civil_time_rise = $local_civil_time_rise + 24;
     }
-    $local_civil_time_set = $temp_loc_civil_time_set + sun_corrections($temp_array_sun_coord_set[1]);
+    $local_civil_time_set = $temp_loc_civil_time_set + sun_corrections($temp_array_sun_coord_set[1]) + $Time_Zone;
     //echo "local_civil_time_set: ".$local_civil_time_set."<br>";
     if ($local_civil_time_set > 24){
         $local_civil_time_set = $local_civil_time_set - 24;
@@ -2500,12 +2616,6 @@ function Set_rise_sun_new($year_sun, $month_sun, $day_sun):array{
 
     return $rise_set_arr;
 }
-//
-//$temp = Set_rise_sun_new(2022,1,2);
-//$a = lst_to_sep($temp[0]);
-//$b = lst_to_sep($temp[1]);
-//echo "Rise: ".$a."<br>";
-//echo "Set: ".$b."<br>";
 
 function month_sun_time_new($year_sun1, $month_sun1){
     $month_array_sun_time = array();
@@ -2528,9 +2638,15 @@ function month_sun_time_new($year_sun1, $month_sun1){
     }
     $i = 0;
     while($i < $counter_days){
-        $temp_array_new = Set_rise_sun_new($year_sun1, $month_sun1,($i+1));
+        $temp_array_new = Set_rise_sun_new2($year_sun1, $month_sun1,($i+1));
         $temp1 = lst_to_sep($temp_array_new[0]);
+        if ($temp1 == "00:00:00"){
+            $temp1 = "--:--:--";
+        }
         $temp2 = lst_to_sep($temp_array_new[1]);
+        if ($temp2 == "00:00:00"){
+            $temp2 = "--:--:--";
+        }
         $temp_arr_tot = array($temp1, $temp2);
         array_push($month_array_sun_time, $temp_arr_tot);
         $i  = $i  + 1;
