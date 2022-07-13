@@ -1,8 +1,8 @@
 <link rel='stylesheet' href='css/styles.css'>
-<p class="title"><b>Астрономический календарь </b></p>
+<p class="title"><b> Астрономиялық күнтізбе </b></p>
 <!--<p class="title"><b>Астрономический календарь для дома пр. Ветеранов 25</b></p>-->
-<form action="print_rus_calend.php" method="post">
-    <p class="tag"><button type="submit" name="submission">Сохранить как pdf</button></p>
+<form action="print_kaz_calend.php" method="post">
+    <p class="tag"><button type="submit" name="submission">pdf қайта жасау</button></p>
 </form>
 <?php
 require "test.php";
@@ -193,15 +193,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $g = month_sid_time($year_id, $month_id);
             echo "<div align='center'>";
             echo "Год: " . $year_id . ", Месяц: " . $month_id . "<br>";
+            echo "<b> Широта: </b>" . $name_lat ."&nbsp &nbsp". "<b> Долгота: </b>" . $name_long ."&nbsp &nbsp"." <b>UTC уақыт белдеуі: </b>" . $time_sign . "<br>";
             echo "<br>";
-            echo "<b> Широта: </b>" . $name_lat ."&nbsp &nbsp". "<b> Долгота: </b>" . $name_long ."&nbsp &nbsp"." <b>Часовой пояс от UTC: </b>" . $time_sign . "<br>";
-            echo "<br>";
-            echo "<p><b>Локальное звездное время на 00:00:00 местного времени</b></p>";
+            echo "<p><b>Жергілікті уақыт бойынша 00:00:00 жергілікті жұлдыздық уақыт</b></p>";
+
             echo "<table align='center'>";
             echo "<thead>
             <tr>
-            <th align='center'> &nbsp &nbsp Число &nbsp &nbsp </th>
-            <th align='center'>&nbsp &nbsp LST (чч:мм:сс) &nbsp &nbsp </th>
+            <th align='center'> &nbsp &nbsp Күн &nbsp &nbsp </th>
+            <th align='center'>&nbsp &nbsp LST (сағ:мм:сс) &nbsp &nbsp </th>
             </tr>
             </thead>
             <tbody>";
@@ -215,14 +215,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $twi_nav = month_twi_time_nav($year_id, $month_id);
             $twi_civil = month_twi_time_civil($year_id, $month_id);
             echo "<p><b>&nbsp &nbsp</b></p>";
-            echo "Год: " . $year_id . ", Месяц: " . $month_id;
+            echo "Жыл: " . $year_id . ", Ай: " . $month_id;
 
-            echo "<p><b>Восход и заход Солнца, сумерки по местному времени </b></p>";
+            echo "<p><b> Жергілікті уақыт бойынша күннің шығуы, батуы, ымырт </b></p>";
 
             echo "<table align='center'>";
             echo "<thead>
             <tr>
-            <th align='center'>Число </th>
+            <th align='center'> Күн </th>
             <th align='center'>Начало астр. сумерек </th>
             <th align='center'>Начало нав. сумерек </th>
             <th align='center'>Начало гражд. сумерек </th>
@@ -243,22 +243,23 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         } elseif (($year_id and $month_id and $data_type == 3)) {
             $moon_rise_set = month_moon($year_id, $month_id);
             $moon_phase = Moon_phase_month($year_id, $month_id);
-            $moon_type = moon_type($year_id, $month_id);
+            $moon_type = moon_type_kaz($year_id, $month_id);
             echo "<div align='center'>";
-            echo "Год: " . $year_id . ", Месяц: " . $month_id . "<br>";
+            echo "Жыл: " . $year_id . ", Ай: " . $month_id . "<br>";
             echo "<br>";
-            echo "<b>Широта: </b>" . $name_lat ."&nbsp &nbsp". " <b>Долгота: </b>" . $name_long ."&nbsp &nbsp"." <b>Часовой пояс от UTC: </b>" . $time_sign . "<br>";
-            echo "<p><b>Восход и заход Луны по местному времени (чч:мм:cc), фазы</b></p>";
+            echo "<b> Ендік: </b>" . $name_lat ."&nbsp &nbsp". " <b> Бойлық
+: </b>" . $name_long ."&nbsp &nbsp"." <b> UTC уақыт белдеуі: </b>" . $time_sign . "<br>";
+            echo "<p><b> Жергілікті уақыт бойынша айдың шығуы, батуы (сағ:мин:сек), фазалары </b></p>";
 
 
             echo "<table align='center'>";
             echo "<thead>
                 <tr>
-                <th align='center'> &nbsp Число &nbsp </th>
-                <th align='center'> &nbsp Восход Луны &nbsp </th>
-                <th align='center'> &nbsp Заход Луны &nbsp </th>
+                <th align='center'> &nbsp Күн &nbsp </th>
+                <th align='center'> &nbsp Айдың шығуы &nbsp </th>
+                <th align='center'> &nbsp Айдың батуы &nbsp </th>
                 <th align='center'> &nbsp Фаза &nbsp </th>
-                <th align='center'> &nbsp &nbsp Рост  &nbsp &nbsp </th>
+                <th align='center'> &nbsp &nbsp Өсу  &nbsp &nbsp </th>
                 </tr>
             </thead>
             <tbody>";
@@ -268,7 +269,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             echo "</tbody></table>";
             echo "</div>";
             echo "&nbsp";
-            echo "<div style='color: #0e356e'>Из-за относительно быстрого орбитального движения Луны возможны ситуации, когда в ходе текущих суток произойдет только восход (или заход Луны). Такая ситуация обозначается прочерком в соответствующем столбце</div>";
+            echo "<div style='color: #0e356e'>Айдың салыстырмалы түрде жылдам орбиталық қозғалысына байланысты ағымдағы тәулікте тек Айдың көтерілуі (немесе батуы) болатын жағдайлар мүмкін. Бұл жағдай сәйкес бағандағы сызықша арқылы көрсетіледі.</div>";
         } elseif (($year_id and $month_id and $data_type == 2)) {
             $sun = month_sun_time_new($year_id, $month_id);
             $twi_astr = month_twi_time_astr($year_id, $month_id);
@@ -277,22 +278,22 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             echo "<div align='center'>";
             echo "Год: " . $year_id . ", Месяц: " . $month_id . "<br>";
             echo "<br>";
-            echo "<b>Широта: </b>" . $name_lat ."&nbsp &nbsp". " <b> Долгота: </b>" . $name_long ."&nbsp &nbsp"." <b>Часовой пояс от UTC: </b>" . $time_sign . "<br>";
-            echo "<p><b>Восход и заход Солнца, сумерки по местному времени (чч:мм:cc)</b></p>";
+            echo "<b> Ендік: </b>" . $name_lat ."&nbsp &nbsp". " <b> Бойлық </b>" . $name_long ."&nbsp &nbsp"." <b> UTC уақыт белдеуі: </b>" . $time_sign . "<br>";
+            echo "<p><b> Жергілікті уақыт бойынша күннің шығуы, батуы, ымырт (сағ:мин:сек)</b></p>";
 
             echo "<table align='center'>";
             echo "<thead>
             <tr>
-            <th align='center'> &nbsp Число <br>  &nbsp</th>
-            <th align='center'> Начало астр. <br> сумерек  </th>
-            <th align='center'> Начало нав. <br> сумерек </th>
-            <th align='center'> Начало гражд. <br> сумерек </th>
-            <th align='center'>  Восход <br> Солнца   </th>
-            <th align='center'> Заход <br> Солнца  </th>
-            <th align='center'> Долгота <br> дня  </th>
-            <th align='center'>  Конец гражд. <br> сумерек  </th>
-            <th align='center'>Конец нав. <br> сумерек </th>
-            <th align='center'> Конец астр. <br> сумерек </th>
+            <th align='center'> &nbsp Күн <br>  <br> &nbsp</th>
+            <th align='center'> Астрономиялық <br> ымырттың <br> басталуы </th>
+            <th align='center'> Навигациялық <br> ымырттың <br> басталуы</th>
+            <th align='center'> Азаматтық <br> ымырттың <br> басталуы </th>
+            <th align='center'>  Күннің <br> шығуы  <br> </th>
+            <th align='center'> Күннің <br> батуы <br> </th>
+            <th align='center'> Күнінің <br> ұзақтығы <br> </th>
+            <th align='center'>  Азаматтық <br> ымырттың <br> соңы  </th>
+            <th align='center'>  Навигациялық <br> ымырттың <br> соңы </th>
+            <th align='center'> Астрономиялық <br> ымырттың <br> соңы </th>
 
             </tr>
             </thead>
@@ -306,17 +307,17 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $g = array();
             $g = month_sid_time($year_id, $month_id);
             echo "<div align='center'>";
-            echo "Год: " . $year_id . ", Месяц: " . $month_id . "<br>";
+            echo "Жыл: " . $year_id . ", Ай: " . $month_id . "<br>";
             echo "<br>";
-            echo "<b> Широта: </b>" . $name_lat ."&nbsp &nbsp". " <b> Долгота: </b>" . $name_long ."&nbsp &nbsp"." <b> Часовой пояс от UTC: </b>" . $time_sign . "<br>";;
+            echo "<b> Ендік: </b>" . $name_lat ."&nbsp &nbsp". " <b> Бойлық: </b>" . $name_long ."&nbsp &nbsp"." <b> UTC уақыт белдеуі: </b>" . $time_sign . "<br>";;
 //            echo "<p><b>&nbsp &nbsp</b></p>";
-            echo "<p><b>Локальное звездное время на 00:00:00 местного времени</b></p>";
+            echo "<p><b> Жергілікті уақыт бойынша 00:00:00 жергілікті жұлдыздық уақыт </b></p>";
 //            echo "<p><b>&nbsp &nbsp</b></p>";
             echo "<table align='center'>";
             echo "<thead>
             <tr>
-            <th align='center'> &nbsp &nbsp Число &nbsp &nbsp </th>
-            <th align='center'>&nbsp &nbsp LST (чч:мм:сс) &nbsp &nbsp </th>
+            <th align='center'> &nbsp &nbsp Күн &nbsp &nbsp </th>
+            <th align='center'>&nbsp &nbsp LST (сағ:мин:сек) &nbsp &nbsp </th>
             </tr>
             </thead>
             <tbody>";
@@ -336,43 +337,43 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $loc_fall = Date_time_from_jd($sol_eq_jd[6]);
             $loc_winter = Date_time_from_jd($sol_eq_jd[7]);
             echo "<div align='center'>";
-            echo "Год: " . $year_id;
-            echo "<p><b>Равноденствия и солнцестояния по всемирному времени (UTC)</b></p>";
+            echo "Жыл: " . $year_id;
+            echo "<p><b>UTC уақыт бойынша күн мен түннің теңелуі және күн тоқырауы</b></p>";
             echo "<table align='center'>";
             echo "<thead>
             <tr>
             <th align='center'>  Тип  </th>
-            <th align='center'> &nbsp &nbsp Месяц &nbsp &nbsp </th>
-            <th align='center'> &nbsp &nbsp День &nbsp &nbsp </th>
-            <th align='center'> &nbsp &nbsp Время &nbsp &nbsp </th>
+            <th align='center'> &nbsp &nbsp Ай &nbsp &nbsp </th>
+            <th align='center'> &nbsp &nbsp Күн &nbsp &nbsp </th>
+            <th align='center'> &nbsp &nbsp Уақыт &nbsp &nbsp </th>
             <th align='center'> &nbsp &nbsp  &nbsp &nbsp </th>
             </tr>
             </thead>
             <tbody>";
-            echo "<tr><td align='center'> Весеннее равноденствие: </td><td align='center'>" . $sping[1] . "</td><td align='center'>" . $sping[2] . "</td><td align='center'>" . hours_to_sep($sping[6]) ."</td><td align='center'> "."</td></tr>";
-            echo "<tr><td align='center'> Летнее солнцестояние: </td><td align='center'>" . $summer[1] . "</td><td align='center'>" . $summer[2] . "</td><td align='center'>" . hours_to_sep($summer[6]) ."</td><td align='center'> "."</td></tr>";
-            echo "<tr><td align='center'> Осеннее равноденствие: </td><td align='center'>" . $fall[1] . "</td><td align='center'>" . $fall[2] . "</td><td align='center'>" . hours_to_sep($fall[6]) . "</td><td align='center'> "."</td></tr>";
-            echo "<tr><td align='center'> Зимнее солнцестояние: </td><td align='center'>" . $winter[1] . "</td><td align='center'>" . $winter[2] . "</td><td align='center'>" . hours_to_sep($winter[6]) . "</td><td align='center'> "."</td></tr>";
+            echo "<tr><td align='center'>  Көктемгі күн мен түннің теңелуі: </td><td align='center'>" . $sping[1] . "</td><td align='center'>" . $sping[2] . "</td><td align='center'>" . hours_to_sep($sping[6]) ."</td><td align='center'> "."</td></tr>";
+            echo "<tr><td align='center'> Жазғы күн тоқырауы: </td><td align='center'>" . $summer[1] . "</td><td align='center'>" . $summer[2] . "</td><td align='center'>" . hours_to_sep($summer[6]) ."</td><td align='center'> "."</td></tr>";
+            echo "<tr><td align='center'> Күзгі күн мен түннің теңелуі: </td><td align='center'>" . $fall[1] . "</td><td align='center'>" . $fall[2] . "</td><td align='center'>" . hours_to_sep($fall[6]) . "</td><td align='center'> "."</td></tr>";
+            echo "<tr><td align='center'>  Қысқы күн тоқырауы: </td><td align='center'>" . $winter[1] . "</td><td align='center'>" . $winter[2] . "</td><td align='center'>" . hours_to_sep($winter[6]) . "</td><td align='center'> "."</td></tr>";
             echo "</tbody></table>";
             echo "</div>";
 
             echo "<p>&nbsp &nbsp</p>";
-            echo "<p align='center'><b>Равноденствия и солнцестояния по местному (UTC " . $time_sign . ") времени </b></p>";
+            echo "<p align='center'><b> Жергілікті уақыт бойынша (UTC " . $time_sign . ") күн мен түннің теңелуі және күн тоқырауы</b></p>";
             echo "<table align='center'>";
             echo "<thead>
             <tr>
             <th align='center'>  Тип  </th>
-            <th align='center'> &nbsp &nbsp Месяц &nbsp &nbsp </th>
-            <th align='center'> &nbsp &nbsp День &nbsp &nbsp </th>
-            <th align='center'> &nbsp &nbsp Время &nbsp &nbsp </th>
+            <th align='center'> &nbsp &nbsp Ай &nbsp &nbsp </th>
+            <th align='center'> &nbsp &nbsp Күн &nbsp &nbsp </th>
+            <th align='center'> &nbsp &nbsp Уақыт &nbsp &nbsp </th>
              <th align='center'> &nbsp &nbsp  &nbsp &nbsp </th>
             </tr>
             </thead>
             <tbody>";
-            echo "<tr><td align='center'> Весеннее равноденствие: </td><td align='center'>" . $loc_sping[1] . "</td><td align='center'>" . $loc_sping[2] . "</td><td align='center'>" . hours_to_sep($loc_sping[6]) . "</td><td align='center'> "."</td></tr>";
-            echo "<tr><td align='center'> Летнее солнцестояние: </td><td align='center'>" . $loc_summer[1] . "</td><td align='center'>" . $loc_summer[2] . "</td><td align='center'>" . hours_to_sep($loc_summer[6]) . "</td><td align='center'> "."</td></tr>";
-            echo "<tr><td align='center'> Осеннее равноденствие: </td><td align='center'>" . $loc_fall[1] . "</td><td align='center'>" . $loc_fall[2] . "</td><td align='center'>" . hours_to_sep($loc_fall[6]) . "</td><td align='center'>"."</td></tr>";
-            echo "<tr><td align='center'> Зимнее солнцестояние: </td><td align='center'>" . $loc_winter[1] . "</td><td align='center'>" . $loc_winter[2] . "</td><td align='center'>" . hours_to_sep($loc_winter[6]) . "</td><td align='center'> "."</td></tr>";
+            echo "<tr><td align='center'>  Көктемгі күн мен түннің теңелуі: </td><td align='center'>" . $loc_sping[1] . "</td><td align='center'>" . $loc_sping[2] . "</td><td align='center'>" . hours_to_sep($loc_sping[6]) . "</td><td align='center'> "."</td></tr>";
+            echo "<tr><td align='center'> Жазғы күн тоқырауы: </td><td align='center'>" . $loc_summer[1] . "</td><td align='center'>" . $loc_summer[2] . "</td><td align='center'>" . hours_to_sep($loc_summer[6]) . "</td><td align='center'> "."</td></tr>";
+            echo "<tr><td align='center'> Күзгі күн мен түннің теңелуі: </td><td align='center'>" . $loc_fall[1] . "</td><td align='center'>" . $loc_fall[2] . "</td><td align='center'>" . hours_to_sep($loc_fall[6]) . "</td><td align='center'>"."</td></tr>";
+            echo "<tr><td align='center'>  Қысқы күн тоқырауы: </td><td align='center'>" . $loc_winter[1] . "</td><td align='center'>" . $loc_winter[2] . "</td><td align='center'>" . hours_to_sep($loc_winter[6]) . "</td><td align='center'> "."</td></tr>";
             echo "</tbody></table>";
             echo "</div>";
         } else {
