@@ -5,7 +5,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 }
 
 date_default_timezone_set(UTC);// Устанавливаем часовой пояс UTC
-
 $co_researhers = $_POST['corr']; //Co-authors
 $chose_inst ='';
 
@@ -164,8 +163,12 @@ if(isset($_POST['submit'])){
         mail("ursa-majoris@yandex.ru", "Заголовок", "Текст письма \n 1-ая строчка \n 2-ая строчка \n 3-ая строчка");
     }
 }
+
+
+
 if(isset($_SERVER['HTTP_REFERER'])) {
     $urlback = htmlspecialchars($_SERVER['HTTP_REFERER']);
-    echo "<a href='$urlback' class='history-back'>Back</a>";
+    echo "<a href='$urlback' class='history-back'>Back</a><br>";
 }
-
+session_start();
+echo "<a href='test2.php'> pdf </a>";
