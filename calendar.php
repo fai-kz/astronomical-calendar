@@ -1,13 +1,31 @@
 <link rel='stylesheet' href='css/styles.css'>
+<p align="right"> <a href=calendar_kaz.php>  Қаз </a> &nbsp <b>Рус &nbsp </b> <a href=calendar_eng.php>Eng </a></p>
 <p class="title"><b>Астрофизический институт им. Фесенкова</b></p>
 <p class="title"><b>Астрономический календарь </b></p>
 <form action="calend_output.php" method="post">
 
-    <p class="tag"><b> Координаты места </b></p>
-    <p class="tag"><b> (По умолчанию координаты  центра Алматы) </b></p>
-    <div id="menu_inst">
-    Широта &nbsp <input type="text" name="lat" size="5" value="43.25">&nbsp &nbsp Долгота &nbsp <input type="text" name="long" size="5" value="76.95"><br><br>
-        Высота над ур. м. &nbsp <input type="text" name="altitude" size="5" value="0"> (м)&nbsp &nbsp Час. пояс &nbsp <input type="text" name="zone" size="5" value="6"> от UTC
+<!--    <p class="tag"><b> Координаты места </b></p>-->
+<!--    <p class="tag"><b> (По умолчанию координаты  центра Алматы) </b></p>-->
+<!--    <div id="menu_inst">-->
+<!--    Широта &nbsp <input type="text" name="lat" size="5" value="43.25" >&nbsp &nbsp Долгота &nbsp <input type="text" name="long" size="5" value="76.95"><br><br>-->
+<!--        Высота над ур. м. &nbsp <input type="text" name="altitude" size="5" value="0"> (м)&nbsp &nbsp Час. пояс &nbsp <input type="text" name="zone" size="5" value="6"> от UTC-->
+<!--    </div>-->
+    <p class="tag"><b> Координаты места </b></p> <!--ряд с ячейками заголовков-->
+    <div class="mytable">
+    <table>
+        <tr><th colspan="11"><b> (По умолчанию координаты  центра Алматы) </b></th></tr>
+        <tr><td> &nbsp </td> <td> Градусы </td> <td> Минуты </td> <td> Секунды </td> <td> &nbsp </td> <td> &nbsp  </td><td> &nbsp  </td><td> Градусы </td> <td> Минуты </td> <td> Секунды </td><td> &nbsp  </td></tr>
+        <tr><td><b> Широта: </b></td> <td> <input type="text" name="lat" size="5" value="43" > </td> <td> <input type="text" name="lat1" size="5" value="15" > </td>  <td> <input type="text" name="lat2" size="5" value="0" > <td> <select name="lat_type">
+                    <option value="0">Северная</option> <option value="1">Южная</option> </select></td><td> &nbsp &nbsp &nbsp </td>  <td> <b>Долгота:</b></td> <td> <input type="text" name="long" size="5" value="76"> </td><td> <input type="text" name="long1" size="5" value="57"> </td><td> <input type="text" name="long2" size="5" value="0"> </td><td> <select name="long_type">
+                    <option value="0">Восточная</option> <option value="1">Западня</option> </select>  </td></tr>
+    </table>
+
+        <table>
+            <tr> <td> Часовой пояс от UTC: </td> <td> <select name="utc_sign">
+                        <option value="0">+</option> <option value="1">-</option> </select></td>
+                <td><input type="text" name="zone" size="5" value="6"></td></tr>
+                <tr><td> Высота над ур. моря: </td><td colspan="2"> <input type="text" name="altitude" size="5" value="0"> </td></tr>
+        </table>
     </div>
         <p class="tag"><b> Введите год и выберите месяц </b></p>
     <div id="menu_inst">
