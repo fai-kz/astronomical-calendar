@@ -2,6 +2,8 @@
     font-family: "Arial Narrow", sans-serif;
     /*margin: 5%;*/
     /*padding: 5%;*/
+    /*display: flex;*/
+    justify-content: space-evenly;
 }
 .header{
     display: flex;
@@ -52,8 +54,9 @@ ul{
 .tag{
     font-size: 20px;
     text-align: center;
-    margin-top: 30px;
-    margin-bottom: 20px;
+    margin-top: 10px;
+    margin-bottom: 10px;
+    justify-content: space-evenly;
 
 }
 
@@ -84,12 +87,29 @@ ul{
     /*margin-bottom: 10px;*/
 }
 
+.additional1{
+    font-size: 10px;
+    text-align: left;
+    /*margin-top: 20px;*/
+    /*margin-bottom: 10px;*/
+}
+
+.additional2{
+    font-size: 10px;
+    text-align: center;
+    /*margin-top: 20px;*/
+    /*margin-bottom: 10px;*/
+}
+
 .coresearch{
     font-size: 16px;
     text-align: center;
     margin: 20px;
 }
 
+#post1{
+    font-size: 2rem;
+}
 
 /*.{*/
 /*    font-size: 16px;*/
@@ -102,3 +122,25 @@ fieldset {
     border:0 none;
 }
 
+input {text-align:center;}
+.mytable {
+
+}
+table{
+
+    margin: auto;
+    border: 1px;
+    border-spacing: 20px 11px;
+    /*alignment: center;*/
+}
+TH {
+    border: 0px solid;
+    /*align-content: center;*/
+    /*alignment: center;*/
+
+}
+TD{
+    border: 0px solid;
+    /*align-content: center;*/
+    /*alignment: center;*/
+}
