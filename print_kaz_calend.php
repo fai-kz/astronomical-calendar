@@ -24,22 +24,33 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $min_long_symb = "0";
     $longitude = $longitude1 + ($longitude2 / 60) + ($longitude3 / 3600);
     if (abs($longitude1) < 10) {
-        $deg_long_symb = $deg_long_symb . (string)$longitude1;
+        $deg_long_symb = $deg_long_symb.(string)((int)$longitude1);
     } else {
         $deg_long_symb = (string)$longitude1;
     }
     if (abs($longitude2) < 10) {
-        $min_long_symb = $min_long_symb . (string)$longitude2;
+        $min_long_symb = $min_long_symb.(string)((int)$longitude2);
     } else {
-        $min_lat_symb = (string)$longitude2;
+        $min_long_symb = (string)$longitude2;
     }
     if (abs($longitude3) < 10) {
-        $sec_long_symb = $sec_long_symb . (string)$longitude3;
+        $sec_long_symb = $sec_long_symb.(string)((int)$longitude3);
     } else {
         $sec_long_symb = (string)$longitude3;
     }
 
-    $name_long = $deg_long_symb. "°:" . $min_lat_symb . "':" . $sec_long_symb . "''" . $sign_long;
+    if ((is_numeric($longitude1) == false) or (is_numeric($longitude2) == false) or (is_numeric($longitude3) == false)){
+        echo "<p style='color: red'>Внимание! Долгота имеет некорректное значение. Введеное вами значение не является числом </p>". "<br>";
+        echo "<p style='color: red'>Не используйте пробелы и буквы!</p>" . "<br>";
+        echo "<p style='color: red'>Если используете дробное значение, то разделителем служит точка, а не запятая!</p>" . "<br>";
+        exit();
+    }
+    if ((abs($longitude) > 180)) {
+        echo "<p style='color: red'>Внимание!Долгота превышает 180 градусов!</p>" . "<br>";
+        exit();
+
+    }
+    $name_long = $deg_long_symb. "°:" . $min_long_symb . "':" . $sec_long_symb . "''" . $sign_long;
     $name_long = iconv('utf-8', 'windows-1251',$name_long);
 
     $latitude1 = $_SESSION["lat"];
@@ -56,22 +67,43 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $sec_lat_symb = "0";
     $min_lat_symb = "0";
     if (abs($latitude1) < 10) {
-        $deg_lat_symb = $deg_lat_symb . (string)$latitude1;
+        $deg_lat_symb = $deg_lat_symb.(string)((int)$latitude1);
     } else {
         $deg_lat_symb = (string)$latitude1;
     }
     if (abs($latitude2) < 10) {
-        $min_lat_symb = $min_lat_symb . (string)$latitude2;
+        $min_lat_symb = $min_lat_symb.(string)((int)$latitude2);
     } else {
         $min_lat_symb = (string)$latitude2;
     }
     if (abs($latitude3) < 10) {
-        $sec_lat_symb = $sec_lat_symb . (string)$latitude3;
+        $sec_lat_symb = $sec_lat_symb.(string)((int)$latitude3);
     } else {
         $sec_lat_symb = (string)$latitude3;
     }
+
     $name_lat = $deg_lat_symb. "°:" . $min_lat_symb . "':" . $sec_lat_symb . "''" . $sign_lat;
     $name_lat = iconv('utf-8', 'windows-1251',$name_lat);
+
+    if ((is_numeric($latitude1) == false) or (is_numeric($latitude2) == false) or (is_numeric($latitude3) == false)){
+        echo "<p style='color: red'>Внимание! Широта имеет некорректное значение. Введеное вами значение не является числом </p>". "<br>";
+        echo "<p style='color: red'>Не используйте пробелы и буквы!</p>" . "<br>";
+        echo "<p style='color: red'>Если используете дробное значение, то разделителем служит точка, а не запятая!</p>" . "<br>";
+        exit();
+    }
+    if ((abs($latitude) > 90)) {
+        echo "<p style='color: red'>Внимание! Широта превышает 90 градусов!</p>" . "<br>";
+        exit();
+    }
+
+    $altitude = $_SESSION["altitude"];
+    if (is_numeric($altitude) == false) {
+        echo "Внимание! Высота над ур. м. имеет некорректное значение. Введеное вами значение не является числом!</p>" . "<br>";
+        echo "Если используете дробное значение, то разделителем служит точка, а не запятая!</p>" . "<br>";
+        echo "Не используйте пробелы и буквы!</p>" . "<br>";
+        exit();
+    }
+
     $time_zone = $_SESSION["zone"];
     $time_zone = abs($time_zone);
     $time_sign = $_SESSION["utc_sign"];
@@ -81,9 +113,26 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $time_sign = "+" . (string)$time_zone;
     }
 
+    if ((is_numeric($time_zone) == false) or (abs($time_zone) > 12)) {
+        echo "<p style='color: red'>Внимание! Часовой пояс имеет некорректное значение. Введеное вами значение не является числом или превышает 12!</p>" . "<br>";
+        echo "<p style='color: red'>Если используете дробное значение, то разделителем служит точка, а не запятая!</p>" . "<br>";
+        echo "<p style='color: red'>Не используйте пробелы и буквы!</p>" . "<br>";
+        exit();
+    }
+
+
     $year_id = $_SESSION["year"];
     $month_id = $_SESSION["month"];
     $data_type = $_SESSION["type_data"];
+
+    if (($year_id < 0) or ($year_id > 4000) or is_numeric($year_id) == false) {
+        $year_id = 0;
+        echo "<p style='color: red'>Внимание! Год имеет некорректное значение! </p>" . "<br>";
+        echo "<p style='color: red'>Введеное вами значение не является числом! Либо выходит за рамки диапазона от 0 до 4000 </p>" . "<br>";
+        echo "<p style='color: red'>Не используйте пробелы и буквы!</p>" . "<br>";
+        exit();
+    }
+
 
     if (($year_id and $month_id and $data_type == 1)) {
         class PDF extends FPDF

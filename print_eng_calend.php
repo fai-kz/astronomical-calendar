@@ -22,19 +22,30 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $min_long_symb = "0";
     $longitude = $longitude1 + ($longitude2 / 60) + ($longitude3 / 3600);
     if (abs($longitude1) < 10) {
-        $deg_long_symb = $deg_long_symb . (string)$longitude1;
+        $deg_long_symb = $deg_long_symb.(string)((int)$longitude1);
     } else {
         $deg_long_symb = (string)$longitude1;
     }
     if (abs($longitude2) < 10) {
-        $min_long_symb = $min_long_symb . (string)$longitude2;
+        $min_long_symb = $min_long_symb.(string)((int)$longitude2);
     } else {
         $min_lat_symb = (string)$longitude2;
     }
     if (abs($longitude3) < 10) {
-        $sec_long_symb = $sec_long_symb . (string)$longitude3;
+        $sec_long_symb = $sec_long_symb.(string)((int)$longitude3);
     } else {
         $sec_long_symb = (string)$longitude3;
+    }
+
+    if ((is_numeric($longitude1) == false) or (is_numeric($longitude2) == false) or (is_numeric($longitude3) == false)){
+        echo "<p style='color: red'>Attention. Input longitude has incorrect value. The value is not a number </p>". "<br>";
+        echo "<p style='color: red'>Do not use spaces and letters</p>" . "<br>";
+        echo "<p style='color: red'> If you use fractional value, the separating sign is a dot (not comma)</p>" . "<br>";
+        exit();
+    }
+    if ((abs($longitude) > 180)) {
+        echo "<p style='color: red'>Attention. Input longitude exceeds 180 degrees</p>" . "<br>";
+        exit();
     }
 
     $name_long = $deg_long_symb . "°:" . $min_lat_symb . "':" . $sec_long_symb . "''" . $sign_long;
@@ -54,22 +65,40 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $sec_lat_symb = "0";
     $min_lat_symb = "0";
     if (abs($latitude1) < 10) {
-        $deg_lat_symb = $deg_lat_symb . (string)$latitude1;
+        $deg_lat_symb = $deg_lat_symb.(string)((int)$latitude1);
     } else {
         $deg_lat_symb = (string)$latitude1;
     }
     if (abs($latitude2) < 10) {
-        $min_lat_symb = $min_lat_symb . (string)$latitude2;
+        $min_lat_symb = $min_lat_symb.(string)((int)$latitude2);
     } else {
         $min_lat_symb = (string)$latitude2;
     }
     if (abs($latitude3) < 10) {
-        $sec_lat_symb = $sec_lat_symb . (string)$latitude3;
+        $sec_lat_symb = $sec_lat_symb.(string)((int)$latitude3);
     } else {
         $sec_lat_symb = (string)$latitude3;
     }
+    if ((is_numeric($latitude1) == false) or (is_numeric($latitude2) == false) or (is_numeric($latitude3) == false)){
+        echo "<p style='color: red'>Attention. Input latitude has incorrect value. The value is not a number </p>". "<br>";
+        echo "<p style='color: red'>Do not use spaces and letters!</p>" . "<br>";
+        echo "<p style='color: red'>If you use fractional value, the separating sign is a dot (not comma)!</p>" . "<br>";
+        exit();
+    }
+    if ((abs($latitude) > 90)) {
+        echo "<p style='color: red'>Attention. Input latitude exceeds 90 degrees!</p>" . "<br>";
+        exit();
+    }
     $name_lat = $deg_lat_symb . "°:" . $min_lat_symb . "':" . $sec_lat_symb . "''" . $sign_lat;
     $name_lat = iconv('utf-8', 'windows-1251',$name_lat);
+    $altitude = $_SESSION["altitude"];
+    if (is_numeric($altitude) == false) {
+        echo "<p style='color: red'>Attention. Input height has incorrect value. The value is not a number</p>" . "<br>";
+        echo "<p style='color: red'>If you use fractional value, the separating sign is a dot (not comma)!</p>" . "<br>";
+        echo "<p style='color: red'>Do not use spaces and letters</p>" . "<br>";
+        exit();
+    }
+
     $time_zone = $_SESSION["zone"];
     $time_zone = abs($time_zone);
     $time_sign = $_SESSION["utc_sign"];
@@ -78,10 +107,25 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     } else {
         $time_sign = "+" . (string)$time_zone;
     }
+    if ((is_numeric($time_zone) == false) or (abs($time_zone) > 12)) {
+        echo "<p style='color: red'>Attention. Input height has incorrect value. The value is not a number or exceeds 12!</p>" . "<br>";
+        echo "<p style='color: red'>If you use fractional value, the separating sign is a dot (not comma)</p>" . "<br>";
+        echo "<p style='color: red'>Do not use spaces and letters!</p>" . "<br>";
+        exit();
+    }
+
 
     $year_id = $_SESSION["year"];
     $month_id = $_SESSION["month"];
     $data_type = $_SESSION["type_data"];
+
+    if (($year_id < 0) or ($year_id > 4000) or is_numeric($year_id) == false) {
+        $year_id = 0;
+        echo "<p style='color: red'>Attention. Input year has incorrect value! </p>" . "<br>";
+        echo "<p style='color: red'>The value is not a number or out of 0 - 4000 </p>" . "<br>";
+        echo "<p style='color: red'>Do not use spaces and letters!</p>" . "<br>";
+        exit();
+    }
 
     if (($year_id and $month_id and $data_type == 1)) {
         class PDF extends FPDF
