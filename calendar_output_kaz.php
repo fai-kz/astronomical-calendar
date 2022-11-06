@@ -35,32 +35,34 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $min_long_symb = "0";
         $longitude = $longitude1 + ($longitude2 / 60) + ($longitude3 / 3600);
         if (abs($longitude1) < 10){
-            $deg_long_symb = $deg_long_symb.(string)$longitude1;
+            $deg_long_symb = $deg_long_symb.(string)((int)$longitude1);
         }
         else{
             $deg_long_symb = (string)$longitude1;
         }
         if (abs($longitude2) < 10){
-            $min_long_symb = $min_long_symb.(string)$longitude2;
+            $min_long_symb = $min_long_symb.(string)((int)$longitude2);
         }
         else{
-            $min_lat_symb = (string)$longitude2;
+            $min_long_symb = (string)$longitude2;
         }
         if (abs($longitude3) < 10){
-            $sec_long_symb = $sec_long_symb.(string)$longitude3;
+            $sec_long_symb = $sec_long_symb.(string)((int)$longitude3);
         }
         else{
             $sec_long_symb = (string)$longitude3;
         }
 
-        $name_long = $deg_long_symb."&deg:".$min_lat_symb."':".$sec_long_symb."''".$sign_long;
+        $name_long = $deg_long_symb."&deg:".$min_long_symb."':".$sec_long_symb."''".$sign_long;
         if ((is_numeric($longitude1) == false) or (is_numeric($longitude2) == false) or (is_numeric($longitude3) == false)){
             echo "<p style='color: red'>Внимание! Долгота имеет некорректное значение. Введеное вами значение не является числом </p>". "<br>";
             echo "<p style='color: red'>Не используйте пробелы и буквы!</p>" . "<br>";
             echo "<p style='color: red'>Если используете дробное значение, то разделителем служит точка, а не запятая!</p>" . "<br>";
+            exit();
         }
         if ((abs($longitude) > 180)) {
             echo "<p style='color: red'>Внимание!Долгота превышает 180 градусов!</p>" . "<br>";
+            exit();
 
         }
 
@@ -83,19 +85,19 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $sec_lat_symb = "0";
         $min_lat_symb = "0";
         if (abs($latitude1) < 10){
-            $deg_lat_symb = $deg_lat_symb.(string)$latitude1;
+            $deg_lat_symb = $deg_lat_symb.(string)((int)$latitude1);
         }
         else{
             $deg_lat_symb = (string)$latitude1;
         }
         if (abs($latitude2) < 10){
-            $min_lat_symb = $min_lat_symb.(string)$latitude2;
+            $min_lat_symb = $min_lat_symb.(string)((int)$latitude2);
         }
         else{
             $min_lat_symb = (string)$latitude2;
         }
         if (abs( $latitude3) < 10){
-            $sec_lat_symb = $sec_lat_symb.(string)$latitude3;
+            $sec_lat_symb = $sec_lat_symb.(string)((int)$latitude3);
         }
         else{
             $sec_lat_symb = (string)$latitude3;
@@ -105,9 +107,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             echo "<p style='color: red'>Внимание! Широта имеет некорректное значение. Введеное вами значение не является числом </p>". "<br>";
             echo "<p style='color: red'>Не используйте пробелы и буквы!</p>" . "<br>";
             echo "<p style='color: red'>Если используете дробное значение, то разделителем служит точка, а не запятая!</p>" . "<br>";
+            exit();
         }
         if ((abs($latitude) > 90)) {
             echo "<p style='color: red'>Внимание! Широта превышает 90 градусов!</p>" . "<br>";
+            exit();
         }
         $altitude = $_POST["altitude"];
         $_SESSION["altitude"] =  $altitude;
@@ -115,6 +119,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             echo "Внимание! Высота над ур. м. имеет некорректное значение. Введеное вами значение не является числом!</p>" . "<br>";
             echo "Если используете дробное значение, то разделителем служит точка, а не запятая!</p>" . "<br>";
             echo "Не используйте пробелы и буквы!</p>" . "<br>";
+            exit();
         }
         $time_zone = $_POST["zone"];
         $_SESSION["zone"] = $time_zone;
@@ -131,6 +136,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             echo "<p style='color: red'>Внимание! Часовой пояс имеет некорректное значение. Введеное вами значение не является числом или превышает 12!</p>" . "<br>";
             echo "<p style='color: red'>Если используете дробное значение, то разделителем служит точка, а не запятая!</p>" . "<br>";
             echo "<p style='color: red'>Не используйте пробелы и буквы!</p>" . "<br>";
+            exit();
         }
 
         $year_id = (int)trim($_POST["year"]);
@@ -140,6 +146,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             echo "<p style='color: red'>Внимание! Год имеет некорректное значение! </p>" . "<br>";
             echo "<p style='color: red'>Введеное вами значение не является числом! Либо выходит за рамки диапазона от 0 до 4000 </p>" . "<br>";
             echo "<p style='color: red'>Не используйте пробелы и буквы!</p>" . "<br>";
+            exit();
         }
         $month_id = $_POST["month"];
         $_SESSION["month"] = $month_id;
